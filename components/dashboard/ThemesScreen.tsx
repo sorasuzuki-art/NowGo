@@ -81,34 +81,6 @@ const THEMES = [
 export function ThemesScreen() {
   const { setScreen, setPlan } = useNowgoStore();
 
-<<<<<<< HEAD
-  const handleSelectTheme = () => {
-    setPlan({
-      spots: [
-        {
-          id: '1',
-          name: 'カフェ モーニング',
-          category: 'カフェ',
-          description: '落ち着いた雰囲気のカフェ',
-          time: '14:00',
-          duration: 60,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-        {
-          id: '2',
-          name: '公園散策',
-          category: '公園',
-          description: '緑豊かな公園でリフレッシュ',
-          time: '15:15',
-          duration: 45,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-      ],
-      startTime: '14:00',
-      totalDuration: 120,
-=======
   const handleSelectTheme = async (theme: typeof THEMES[0]) => {
     // 新しい検索ロジックを使用してテーマに応じたプランを生成
     const { searchSpots } = await import('@/lib/searchLogic');
@@ -182,7 +154,6 @@ export function ThemesScreen() {
       })),
       startTime: '14:00',
       totalDuration: 180,
->>>>>>> 939b30f (first commit)
       pinnedSpots: [],
     });
     setScreen('plan');
@@ -221,11 +192,7 @@ export function ThemesScreen() {
               return (
                 <button
                   key={theme.title}
-<<<<<<< HEAD
-                  onClick={handleSelectTheme}
-=======
                   onClick={() => handleSelectTheme(theme)}
->>>>>>> 939b30f (first commit)
                   className="bg-white rounded-2xl p-5 border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all text-left group"
                 >
                   <div className="flex items-start gap-4">

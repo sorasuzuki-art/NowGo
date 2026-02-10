@@ -111,79 +111,6 @@ export async function getNearbyPlaces(
     throw new Error(`Station coordinates not found for: ${stationName}`);
   }
 
-<<<<<<< HEAD
-  const { lat, lon } = coords;
-  const radiusMeters = radiusKm * 1000;
-
-  const categoryFilter = categories && categories.length > 0
-    ? categories.map(cat => {
-        const osmKey = Object.entries(OSM_CATEGORY_MAP).find(([_, value]) => value === cat)?.[0];
-        return osmKey;
-      }).filter(Boolean).join('|')
-    : '';
-
-  const overpassQuery = `
-    [out:json][timeout:30];
-    (
-      node["amenity"~"cafe|restaurant|fast_food|bar|pub|cinema|theatre|library|place_of_worship"](around:${radiusMeters},${lat},${lon});
-      node["leisure"~"park|garden|playground|sports_centre"](around:${radiusMeters},${lat},${lon});
-      node["tourism"~"museum|gallery|attraction|viewpoint|artwork"](around:${radiusMeters},${lat},${lon});
-      node["shop"~"mall|department_store|books|clothes|electronics"](around:${radiusMeters},${lat},${lon});
-      way["amenity"~"cafe|restaurant|fast_food|bar|pub|cinema|theatre|library|place_of_worship"](around:${radiusMeters},${lat},${lon});
-      way["leisure"~"park|garden|playground|sports_centre"](around:${radiusMeters},${lat},${lon});
-      way["tourism"~"museum|gallery|attraction|viewpoint|artwork"](around:${radiusMeters},${lat},${lon});
-      way["shop"~"mall|department_store|books|clothes|electronics"](around:${radiusMeters},${lat},${lon});
-      relation["leisure"="park"](around:${radiusMeters},${lat},${lon});
-    );
-    out center;
-  `;
-
-  try {
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: overpassQuery,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Overpass API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const places: OSMPlace[] = data.elements
-      .filter((element: any) => element.tags && element.tags.name)
-      .map((element: any) => {
-        const elementLat = element.lat || element.center?.lat;
-        const elementLon = element.lon || element.center?.lon;
-
-        if (!elementLat || !elementLon) return null;
-
-        const distance = calculateDistance(lat, lon, elementLat, elementLon);
-        const category = getCategoryFromTags(element.tags);
-
-        if (categories && categories.length > 0 && !categories.includes(category)) {
-          return null;
-        }
-
-        return {
-          id: element.id.toString(),
-          name: element.tags.name,
-          category,
-          lat: elementLat,
-          lon: elementLon,
-          distance,
-          tags: element.tags,
-        };
-      })
-      .filter((place: OSMPlace | null): place is OSMPlace => place !== null)
-      .sort((a: OSMPlace, b: OSMPlace) => (a.distance || 0) - (b.distance || 0));
-
-    return places.slice(0, 50);
-  } catch (error) {
-    console.error('Error fetching nearby places from OSM:', error);
-    throw error;
-  }
-=======
   // テストデータを使用
   const { testSpots, getNearbySpots } = await import('./testData');
 
@@ -216,7 +143,6 @@ export async function getNearbyPlaces(
   return filteredPlaces
     .sort((a, b) => (a.distance || 0) - (b.distance || 0))
     .slice(0, 50);
->>>>>>> 939b30f (first commit)
 }
 
 export function getWalkingTime(distanceKm: number): number {
@@ -247,14 +173,11 @@ export function getPlaceImageUrl(category: string): string {
     '図書館': 'https://images.pexels.com/photos/2908984/pexels-photo-2908984.jpeg?auto=compress&cs=tinysrgb&w=400',
     '寺社': 'https://images.pexels.com/photos/161401/fushimi-inari-taisha-shrine-kyoto-japan-temple-161401.jpeg?auto=compress&cs=tinysrgb&w=400',
     'スポーツ施設': 'https://images.pexels.com/photos/248547/pexels-photo-248547.jpeg?auto=compress&cs=tinysrgb&w=400',
-<<<<<<< HEAD
-=======
     // テストデータのカテゴリ対応
     'culture': 'https://images.pexels.com/photos/1680247/pexels-photo-1680247.jpeg?auto=compress&cs=tinysrgb&w=1920',
     'nature': 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=400',
     'shopping': 'https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=400',
     'food': 'https://images.pexels.com/photos/884600/pexels-photo-884600.jpeg?auto=compress&cs=tinysrgb&w=400',
->>>>>>> 939b30f (first commit)
   };
 
   return imageMap[category] || 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=400';
