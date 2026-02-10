@@ -46,15 +46,38 @@ export function HomeScreen() {
     });
 
     try {
+<<<<<<< HEAD
       const places = await getNearbyPlaces(selectedStation, 2.5);
       console.log(`Found ${places.length} places near ${selectedStation}`);
 
       if (places.length === 0) {
         alert('近くにスポットが見つかりませんでした');
+=======
+      // 新しい検索ロジックを使用
+      const { searchSpots } = await import('@/lib/searchLogic');
+
+      const now = new Date();
+      const searchParams = {
+        availableTime: duration,
+        currentHour: now.getHours(),
+        companion: (groupSize === 1 ? 'ひとり' :
+                  groupSize === 2 ? 'デート' :
+                  groupSize >= 3 ? '友達' : '未定') as 'ひとり' | 'デート' | '友達' | '未定',
+        mode: 'おまかせ' as const,
+        weather: '晴れ' as const // デフォルト値、後で天気APIと連携可能
+      };
+
+      const searchResults = searchSpots(searchParams);
+      console.log(`Found ${searchResults.length} recommended spots`);
+
+      if (searchResults.length === 0) {
+        alert('おすすめのスポットが見つかりませんでした');
+>>>>>>> 939b30f (first commit)
         setIsLoading(false);
         return;
       }
 
+<<<<<<< HEAD
       const preferredCategories = [
         'カフェ', 'レストラン', 'ファストフード', 'バー', '居酒屋',
         '公園', '美術館', 'ギャラリー', '観光スポット', '展望台', 'アート',
@@ -94,10 +117,27 @@ export function HomeScreen() {
           break;
         }
 
+=======
+      // 時間に応じてスポット数を決定
+      const maxSpots = Math.min(5, Math.floor(duration / 45));
+      const selectedSpots = searchResults.slice(0, maxSpots);
+
+      let currentTime = now.getTime();
+      const spots = [];
+
+      for (let i = 0; i < selectedSpots.length; i++) {
+        const spot = selectedSpots[i];
+        const walkingTime = i === 0 ? 10 : Math.floor(Math.random() * 10) + 5;
+
+        currentTime += walkingTime * 60000;
+
+        const spotDuration = Math.min(spot.estimatedTime, Math.floor(duration / selectedSpots.length));
+>>>>>>> 939b30f (first commit)
         const arrivalTime = new Date(currentTime);
         currentTime += spotDuration * 60000;
 
         spots.push({
+<<<<<<< HEAD
           id: place.id,
           name: place.name,
           category: place.category,
@@ -117,6 +157,26 @@ export function HomeScreen() {
 
       if (spots.length === 0) {
         alert('プランを生成できませんでした。別の駅を選択してください。');
+=======
+          id: spot.id,
+          name: spot.name,
+          category: spot.category === 'culture' ? '観光' :
+                   spot.category === 'nature' ? '公園' :
+                   spot.category === 'shopping' ? 'ショップ' :
+                   spot.category === 'food' ? 'カフェ' : 'その他',
+          description: spot.reason.length > 0 ? spot.reason.join('、') : spot.description,
+          time: arrivalTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+          duration: spotDuration,
+          lat: spot.coordinates.latitude,
+          lng: spot.coordinates.longitude,
+        });
+      }
+
+      console.log(`Generated plan with ${spots.length} spots using smart search`);
+
+      if (spots.length === 0) {
+        alert('プランを生成できませんでした。条件を変更してお試しください。');
+>>>>>>> 939b30f (first commit)
         setIsLoading(false);
         return;
       }

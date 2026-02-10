@@ -12,7 +12,11 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+<<<<<<< HEAD
   const { signIn, signUp } = useAuth();
+=======
+  const { signIn, signUp, signInAsGuest } = useAuth();
+>>>>>>> 939b30f (first commit)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +151,21 @@ export function AuthScreen() {
                 )}
               </button>
             </form>
+<<<<<<< HEAD
+=======
+
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <button
+                onClick={signInAsGuest}
+                className="w-full py-3 px-6 rounded-xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+              >
+                ゲストとして続行
+              </button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                ※ ゲストモードでは一部機能が制限されます
+              </p>
+            </div>
+>>>>>>> 939b30f (first commit)
           </div>
         </div>
       </div>

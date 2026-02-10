@@ -51,6 +51,7 @@ export function QuickPlanScreen() {
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
+<<<<<<< HEAD
     setPlan({
       spots: [
         {
@@ -74,6 +75,45 @@ export function QuickPlanScreen() {
           lng: 139.7004,
         },
       ],
+=======
+    // 新しい検索ロジックを使用
+    const { searchSpots } = await import('@/lib/searchLogic');
+
+    const now = new Date();
+    const searchParams = {
+      availableTime: duration,
+      currentHour: now.getHours(),
+      companion: (groupSize === 1 ? 'ひとり' :
+                groupSize === 2 ? 'デート' :
+                groupSize >= 3 ? '友達' : '未定') as 'ひとり' | 'デート' | '友達' | '未定',
+      mode: 'おまかせ' as const,
+      weather: '晴れ' as const
+    };
+
+    const searchResults = searchSpots(searchParams);
+    const spotsCount = Math.max(2, Math.min(4, Math.floor(duration / 60)));
+    const selectedSpots = searchResults.slice(0, spotsCount);
+
+    setPlan({
+      spots: selectedSpots.map((spot, index) => ({
+        id: spot.id,
+        name: spot.name,
+        category: spot.category === 'culture' ? '観光' :
+                 spot.category === 'nature' ? '公園' :
+                 spot.category === 'shopping' ? 'ショップ' :
+                 spot.category === 'food' ? 'カフェ' : 'その他',
+        description: spot.reason.length > 0 ? spot.reason.join('、') : spot.description.slice(0, 50) + '...',
+        time: (() => {
+          const startTime = new Date();
+          startTime.setHours(14, 0, 0, 0);
+          startTime.setMinutes(startTime.getMinutes() + index * 75);
+          return startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        })(),
+        duration: Math.floor(duration / spotsCount),
+        lat: spot.coordinates.latitude,
+        lng: spot.coordinates.longitude,
+      })),
+>>>>>>> 939b30f (first commit)
       startTime: '14:00',
       totalDuration: duration,
       pinnedSpots: [],

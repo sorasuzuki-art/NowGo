@@ -81,6 +81,7 @@ const THEMES = [
 export function ThemesScreen() {
   const { setScreen, setPlan } = useNowgoStore();
 
+<<<<<<< HEAD
   const handleSelectTheme = () => {
     setPlan({
       spots: [
@@ -107,6 +108,81 @@ export function ThemesScreen() {
       ],
       startTime: '14:00',
       totalDuration: 120,
+=======
+  const handleSelectTheme = async (theme: typeof THEMES[0]) => {
+    // 新しい検索ロジックを使用してテーマに応じたプランを生成
+    const { searchSpots } = await import('@/lib/searchLogic');
+
+    const now = new Date();
+
+    // テーマに応じてパラメータを設定
+    let companion: 'ひとり' | '友達' | 'デート' | '家族' = '友達';
+    let mode: 'おまかせ' | '定番' | '新規開拓' | '冒険' = 'おまかせ';
+    let weather: '晴れ' | '曇り' | '雨' = '晴れ';
+
+    switch (theme.title) {
+      case 'デートコース':
+        companion = 'デート';
+        mode = '定番';
+        break;
+      case '新規開拓':
+        mode = '新規開拓';
+        break;
+      case 'ナイトプラン':
+        companion = '友達';
+        mode = 'おまかせ';
+        break;
+      case '雨の日プラン':
+        weather = '雨';
+        break;
+      case 'Instagram映え':
+        mode = '冒険';
+        break;
+      case 'カフェホッピング':
+        companion = 'ひとり';
+        mode = '定番';
+        break;
+      case '地元民コース':
+        mode = '新規開拓';
+        break;
+      case '初めての渋谷':
+        mode = '定番';
+        break;
+    }
+
+    const searchParams = {
+      availableTime: 180,
+      currentHour: now.getHours(),
+      companion,
+      mode,
+      weather
+    };
+
+    const searchResults = searchSpots(searchParams);
+    const selectedSpots = searchResults.slice(0, theme.spots);
+
+    setPlan({
+      spots: selectedSpots.map((spot, index) => ({
+        id: spot.id,
+        name: spot.name,
+        category: spot.category === 'culture' ? '観光' :
+                 spot.category === 'nature' ? '公園' :
+                 spot.category === 'shopping' ? 'ショップ' :
+                 spot.category === 'food' ? 'カフェ' : 'その他',
+        description: spot.reason.length > 0 ? spot.reason.join('、') : spot.description.slice(0, 50) + '...',
+        time: (() => {
+          const startTime = new Date();
+          startTime.setHours(14, 0, 0, 0);
+          startTime.setMinutes(startTime.getMinutes() + index * 60);
+          return startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        })(),
+        duration: Math.floor(180 / selectedSpots.length),
+        lat: spot.coordinates.latitude,
+        lng: spot.coordinates.longitude,
+      })),
+      startTime: '14:00',
+      totalDuration: 180,
+>>>>>>> 939b30f (first commit)
       pinnedSpots: [],
     });
     setScreen('plan');
@@ -145,7 +221,11 @@ export function ThemesScreen() {
               return (
                 <button
                   key={theme.title}
+<<<<<<< HEAD
                   onClick={handleSelectTheme}
+=======
+                  onClick={() => handleSelectTheme(theme)}
+>>>>>>> 939b30f (first commit)
                   className="bg-white rounded-2xl p-5 border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all text-left group"
                 >
                   <div className="flex items-start gap-4">

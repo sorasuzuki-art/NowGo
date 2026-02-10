@@ -8,6 +8,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type UserProfile = {
   id: string;
   nickname: string;
+<<<<<<< HEAD
+=======
+  email?: string;
+  gender?: string;
+  age?: number;
+>>>>>>> 939b30f (first commit)
   age_group?: string;
   home_station?: string;
   avatar_url?: string;

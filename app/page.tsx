@@ -14,12 +14,20 @@ import { PlanScreen } from '@/components/plan/PlanScreen';
 import { ExecutionScreen } from '@/components/execution/ExecutionScreen';
 
 export default function Home() {
+<<<<<<< HEAD
   const { user, loading } = useAuth();
+=======
+  const { user, loading, isGuest } = useAuth();
+>>>>>>> 939b30f (first commit)
   const { currentScreen, setScreen } = useNowgoStore();
 
   useEffect(() => {
     if (!loading) {
+<<<<<<< HEAD
       if (user) {
+=======
+      if (user || isGuest) {
+>>>>>>> 939b30f (first commit)
         if (currentScreen === 'auth') {
           setScreen('dashboard');
         }
@@ -27,7 +35,11 @@ export default function Home() {
         setScreen('auth');
       }
     }
+<<<<<<< HEAD
   }, [user, loading, currentScreen, setScreen]);
+=======
+  }, [user, loading, isGuest, currentScreen, setScreen]);
+>>>>>>> 939b30f (first commit)
 
   if (loading) {
     return (
@@ -41,7 +53,11 @@ export default function Home() {
     );
   }
 
+<<<<<<< HEAD
   if (!user) {
+=======
+  if (!user && !isGuest) {
+>>>>>>> 939b30f (first commit)
     return <AuthScreen />;
   }
 

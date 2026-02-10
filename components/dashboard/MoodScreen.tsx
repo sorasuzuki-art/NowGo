@@ -24,6 +24,7 @@ export function MoodScreen() {
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
+<<<<<<< HEAD
     setPlan({
       spots: [
         {
@@ -47,6 +48,40 @@ export function MoodScreen() {
           lng: 139.7004,
         },
       ],
+=======
+    // 新しい検索ロジックを使用してムードに合わせたプランを生成
+
+    const now = new Date();
+    const searchParams = {
+      availableTime: 120,
+      currentHour: now.getHours(),
+      companion: (mood.label === 'デート' ? 'デート' :
+                mood.label === 'まったり' ? 'ひとり' : '友達') as 'デート' | 'ひとり' | '友達',
+      mode: (mood.label === '特別' ? '冒険' :
+           mood.label === 'アクティブ' ? '新規開拓' : 'おまかせ') as '冒険' | '新規開拓' | 'おまかせ',
+      weather: '晴れ' as const
+    };
+
+    const { searchSpots } = await import('@/lib/searchLogic');
+    const searchResults = searchSpots(searchParams);
+
+    const selectedSpots = searchResults.slice(0, 2);
+
+    setPlan({
+      spots: selectedSpots.map((spot, index) => ({
+        id: spot.id,
+        name: spot.name,
+        category: spot.category === 'culture' ? '観光' :
+                 spot.category === 'nature' ? '公園' :
+                 spot.category === 'shopping' ? 'ショップ' :
+                 spot.category === 'food' ? 'カフェ' : 'その他',
+        description: spot.reason.length > 0 ? spot.reason.join('、') : spot.description.slice(0, 50) + '...',
+        time: index === 0 ? '14:00' : '15:15',
+        duration: index === 0 ? 60 : 45,
+        lat: spot.coordinates.latitude,
+        lng: spot.coordinates.longitude,
+      })),
+>>>>>>> 939b30f (first commit)
       startTime: '14:00',
       totalDuration: 120,
       pinnedSpots: [],

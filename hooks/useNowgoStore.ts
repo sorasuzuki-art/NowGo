@@ -18,6 +18,7 @@ export interface Plan {
   pinnedSpots: string[];
 }
 
+<<<<<<< HEAD
 interface NowgoStore {
   currentScreen: 'auth' | 'dashboard' | 'quickplan' | 'mood' | 'themes' | 'nearby' | 'profile' | 'plan' | 'executing' | 'complete';
   selectedStation: string;
@@ -29,6 +30,36 @@ interface NowgoStore {
   setStation: (station: string) => void;
   setDuration: (duration: number) => void;
   setGroupSize: (size: number) => void;
+=======
+export type StartLocationSource = 'gps' | 'manual';
+
+export interface StartLocation {
+  /** UIに表示する出発地（住所 or 駅名） */
+  label: string;
+  /** 裏で保持する緯度経度（距離計算用） */
+  lat: number | null;
+  lng: number | null;
+  source: StartLocationSource;
+  /** GPS精度（m）。取得できない場合はnull */
+  accuracy: number | null;
+}
+
+interface NowgoStore {
+  currentScreen: 'auth' | 'dashboard' | 'quickplan' | 'mood' | 'themes' | 'nearby' | 'profile' | 'plan' | 'executing' | 'complete';
+  /** 出発地（住所表示＋緯度経度保持） */
+  startLocation: StartLocation;
+  duration: number;
+  groupSize: number;
+  /** 徒歩何分圏内で遊ぶか（100m=徒歩2分換算の前提でUI提示） */
+  walkRangeMinutes: number;
+  currentPlan: Plan | null;
+
+  setScreen: (screen: NowgoStore['currentScreen']) => void;
+  setStartLocation: (location: StartLocation) => void;
+  setDuration: (duration: number) => void;
+  setGroupSize: (size: number) => void;
+  setWalkRangeMinutes: (minutes: number) => void;
+>>>>>>> 939b30f (first commit)
   setPlan: (plan: Plan) => void;
   togglePinSpot: (spotId: string) => void;
   reset: () => void;
@@ -36,6 +67,7 @@ interface NowgoStore {
 
 export const useNowgoStore = create<NowgoStore>((set) => ({
   currentScreen: 'auth',
+<<<<<<< HEAD
   selectedStation: '',
   duration: 120,
   groupSize: 2,
@@ -45,6 +77,25 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   setStation: (station) => set({ selectedStation: station }),
   setDuration: (duration) => set({ duration }),
   setGroupSize: (size) => set({ groupSize: size }),
+=======
+  startLocation: {
+    label: '',
+    lat: null,
+    lng: null,
+    source: 'gps',
+    accuracy: null,
+  },
+  duration: 120,
+  groupSize: 2,
+  walkRangeMinutes: 30,
+  currentPlan: null,
+
+  setScreen: (screen) => set({ currentScreen: screen }),
+  setStartLocation: (location) => set({ startLocation: location }),
+  setDuration: (duration) => set({ duration }),
+  setGroupSize: (size) => set({ groupSize: size }),
+  setWalkRangeMinutes: (minutes) => set({ walkRangeMinutes: minutes }),
+>>>>>>> 939b30f (first commit)
   setPlan: (plan) => set({ currentPlan: plan }),
   togglePinSpot: (spotId) =>
     set((state) => {
@@ -62,9 +113,22 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   reset: () =>
     set({
       currentScreen: 'dashboard',
+<<<<<<< HEAD
       selectedStation: '',
       duration: 120,
       groupSize: 2,
+=======
+      startLocation: {
+        label: '',
+        lat: null,
+        lng: null,
+        source: 'gps',
+        accuracy: null,
+      },
+      duration: 120,
+      groupSize: 2,
+      walkRangeMinutes: 30,
+>>>>>>> 939b30f (first commit)
       currentPlan: null,
     }),
 }));

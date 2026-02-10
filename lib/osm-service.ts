@@ -111,6 +111,7 @@ export async function getNearbyPlaces(
     throw new Error(`Station coordinates not found for: ${stationName}`);
   }
 
+<<<<<<< HEAD
   const { lat, lon } = coords;
   const radiusMeters = radiusKm * 1000;
 
@@ -182,6 +183,40 @@ export async function getNearbyPlaces(
     console.error('Error fetching nearby places from OSM:', error);
     throw error;
   }
+=======
+  // テストデータを使用
+  const { testSpots, getNearbySpots } = await import('./testData');
+
+  const nearbyTestSpots = getNearbySpots(coords.lat, coords.lon, radiusKm);
+
+  const osmPlaces: OSMPlace[] = nearbyTestSpots.map(spot => ({
+    id: spot.id,
+    name: spot.name,
+    category: spot.category === 'culture' ? '観光スポット' :
+             spot.category === 'nature' ? '公園' :
+             spot.category === 'shopping' ? 'ショップ' :
+             spot.category === 'food' ? 'レストラン' : spot.category,
+    lat: spot.coordinates.latitude,
+    lon: spot.coordinates.longitude,
+    distance: calculateDistance(coords.lat, coords.lon, spot.coordinates.latitude, spot.coordinates.longitude),
+    tags: {
+      name: spot.name,
+      ...(spot.category === 'food' && { amenity: 'restaurant' }),
+      ...(spot.category === 'nature' && { leisure: 'park' }),
+      ...(spot.category === 'culture' && { tourism: 'attraction' }),
+      ...(spot.category === 'shopping' && { shop: 'department_store' }),
+    }
+  }));
+
+  // カテゴリフィルタリング
+  const filteredPlaces = categories && categories.length > 0
+    ? osmPlaces.filter(place => categories.includes(place.category))
+    : osmPlaces;
+
+  return filteredPlaces
+    .sort((a, b) => (a.distance || 0) - (b.distance || 0))
+    .slice(0, 50);
+>>>>>>> 939b30f (first commit)
 }
 
 export function getWalkingTime(distanceKm: number): number {
@@ -212,6 +247,14 @@ export function getPlaceImageUrl(category: string): string {
     '図書館': 'https://images.pexels.com/photos/2908984/pexels-photo-2908984.jpeg?auto=compress&cs=tinysrgb&w=400',
     '寺社': 'https://images.pexels.com/photos/161401/fushimi-inari-taisha-shrine-kyoto-japan-temple-161401.jpeg?auto=compress&cs=tinysrgb&w=400',
     'スポーツ施設': 'https://images.pexels.com/photos/248547/pexels-photo-248547.jpeg?auto=compress&cs=tinysrgb&w=400',
+<<<<<<< HEAD
+=======
+    // テストデータのカテゴリ対応
+    'culture': 'https://images.pexels.com/photos/1680247/pexels-photo-1680247.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    'nature': 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'shopping': 'https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'food': 'https://images.pexels.com/photos/884600/pexels-photo-884600.jpeg?auto=compress&cs=tinysrgb&w=400',
+>>>>>>> 939b30f (first commit)
   };
 
   return imageMap[category] || 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=400';
