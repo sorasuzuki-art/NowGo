@@ -18,19 +18,6 @@ export interface Plan {
   pinnedSpots: string[];
 }
 
-<<<<<<< HEAD
-interface NowgoStore {
-  currentScreen: 'auth' | 'dashboard' | 'quickplan' | 'mood' | 'themes' | 'nearby' | 'profile' | 'plan' | 'executing' | 'complete';
-  selectedStation: string;
-  duration: number;
-  groupSize: number;
-  currentPlan: Plan | null;
-
-  setScreen: (screen: NowgoStore['currentScreen']) => void;
-  setStation: (station: string) => void;
-  setDuration: (duration: number) => void;
-  setGroupSize: (size: number) => void;
-=======
 export type StartLocationSource = 'gps' | 'manual';
 
 export interface StartLocation {
@@ -59,7 +46,6 @@ interface NowgoStore {
   setDuration: (duration: number) => void;
   setGroupSize: (size: number) => void;
   setWalkRangeMinutes: (minutes: number) => void;
->>>>>>> 939b30f (first commit)
   setPlan: (plan: Plan) => void;
   togglePinSpot: (spotId: string) => void;
   reset: () => void;
@@ -67,17 +53,6 @@ interface NowgoStore {
 
 export const useNowgoStore = create<NowgoStore>((set) => ({
   currentScreen: 'auth',
-<<<<<<< HEAD
-  selectedStation: '',
-  duration: 120,
-  groupSize: 2,
-  currentPlan: null,
-
-  setScreen: (screen) => set({ currentScreen: screen }),
-  setStation: (station) => set({ selectedStation: station }),
-  setDuration: (duration) => set({ duration }),
-  setGroupSize: (size) => set({ groupSize: size }),
-=======
   startLocation: {
     label: '',
     lat: null,
@@ -95,7 +70,6 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   setDuration: (duration) => set({ duration }),
   setGroupSize: (size) => set({ groupSize: size }),
   setWalkRangeMinutes: (minutes) => set({ walkRangeMinutes: minutes }),
->>>>>>> 939b30f (first commit)
   setPlan: (plan) => set({ currentPlan: plan }),
   togglePinSpot: (spotId) =>
     set((state) => {
@@ -113,11 +87,6 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   reset: () =>
     set({
       currentScreen: 'dashboard',
-<<<<<<< HEAD
-      selectedStation: '',
-      duration: 120,
-      groupSize: 2,
-=======
       startLocation: {
         label: '',
         lat: null,
@@ -128,7 +97,6 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
       duration: 120,
       groupSize: 2,
       walkRangeMinutes: 30,
->>>>>>> 939b30f (first commit)
       currentPlan: null,
     }),
 }));

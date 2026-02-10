@@ -8,17 +8,11 @@ type AuthContextType = {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-<<<<<<< HEAD
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, nickname: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-=======
   isGuest: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nickname: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   signInAsGuest: () => void;
->>>>>>> 939b30f (first commit)
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 };
 
@@ -28,10 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
-=======
   const [isGuest, setIsGuest] = useState(false);
->>>>>>> 939b30f (first commit)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -114,15 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-<<<<<<< HEAD
-=======
     setIsGuest(false);
   };
 
   const signInAsGuest = () => {
     setIsGuest(true);
     setLoading(false);
->>>>>>> 939b30f (first commit)
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
@@ -144,17 +132,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
-<<<<<<< HEAD
-        signIn,
-        signUp,
-        signOut,
-=======
         isGuest,
         signIn,
         signUp,
         signOut,
         signInAsGuest,
->>>>>>> 939b30f (first commit)
         updateProfile,
       }}
     >

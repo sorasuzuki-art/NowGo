@@ -12,11 +12,7 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-<<<<<<< HEAD
-  const { signIn, signUp } = useAuth();
-=======
   const { signIn, signUp, signInAsGuest } = useAuth();
->>>>>>> 939b30f (first commit)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,8 +147,6 @@ export function AuthScreen() {
                 )}
               </button>
             </form>
-<<<<<<< HEAD
-=======
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <button
@@ -165,7 +159,6 @@ export function AuthScreen() {
                 ※ ゲストモードでは一部機能が制限されます
               </p>
             </div>
->>>>>>> 939b30f (first commit)
           </div>
         </div>
       </div>

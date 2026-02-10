@@ -6,10 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Clock } from 'lucide-react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import { getRecentStations, addRecentStation } from '@/lib/storage';
-<<<<<<< HEAD
-=======
 import { geocode } from '@/lib/geocoding';
->>>>>>> 939b30f (first commit)
 
 const STATION_DATA = [
   { name: '渋谷駅', lines: ['JR山手線', '東急田中線'] },
@@ -37,12 +34,8 @@ interface StationSelectModalProps {
 export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentStations, setRecentStations] = useState<string[]>([]);
-<<<<<<< HEAD
-  const { setStation } = useNowgoStore();
-=======
   const { setStartLocation } = useNowgoStore();
   const [isSaving, setIsSaving] = useState(false);
->>>>>>> 939b30f (first commit)
 
   useEffect(() => {
     if (isOpen) {
@@ -62,12 +55,6 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
       .filter((s): s is typeof STATION_DATA[0] => s !== undefined);
   }, [recentStations]);
 
-<<<<<<< HEAD
-  const handleSelect = (stationName: string) => {
-    setStation(stationName);
-    addRecentStation(stationName);
-    onClose();
-=======
   const handleSelect = async (stationName: string) => {
     try {
       setIsSaving(true);
@@ -97,7 +84,6 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
     } finally {
       setIsSaving(false);
     }
->>>>>>> 939b30f (first commit)
   };
 
   return (
@@ -116,10 +102,7 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-11 py-5 bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white rounded-xl text-base"
               autoFocus
-<<<<<<< HEAD
-=======
               disabled={isSaving}
->>>>>>> 939b30f (first commit)
             />
           </div>
 

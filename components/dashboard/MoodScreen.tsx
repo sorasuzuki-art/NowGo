@@ -24,31 +24,6 @@ export function MoodScreen() {
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-<<<<<<< HEAD
-    setPlan({
-      spots: [
-        {
-          id: '1',
-          name: 'カフェ モーニング',
-          category: 'カフェ',
-          description: '落ち着いた雰囲気のカフェ',
-          time: '14:00',
-          duration: 60,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-        {
-          id: '2',
-          name: '公園散策',
-          category: '公園',
-          description: '緑豊かな公園でリフレッシュ',
-          time: '15:15',
-          duration: 45,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-      ],
-=======
     // 新しい検索ロジックを使用してムードに合わせたプランを生成
 
     const now = new Date();
@@ -81,7 +56,6 @@ export function MoodScreen() {
         lat: spot.coordinates.latitude,
         lng: spot.coordinates.longitude,
       })),
->>>>>>> 939b30f (first commit)
       startTime: '14:00',
       totalDuration: 120,
       pinnedSpots: [],

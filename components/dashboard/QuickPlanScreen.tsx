@@ -51,31 +51,6 @@ export function QuickPlanScreen() {
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-<<<<<<< HEAD
-    setPlan({
-      spots: [
-        {
-          id: '1',
-          name: 'カフェ モーニング',
-          category: 'カフェ',
-          description: '落ち着いた雰囲気のカフェ',
-          time: '14:00',
-          duration: 60,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-        {
-          id: '2',
-          name: '居酒屋 楽',
-          category: '居酒屋',
-          description: 'カジュアルな居酒屋',
-          time: '15:15',
-          duration: 60,
-          lat: 35.6595,
-          lng: 139.7004,
-        },
-      ],
-=======
     // 新しい検索ロジックを使用
     const { searchSpots } = await import('@/lib/searchLogic');
 
@@ -113,7 +88,6 @@ export function QuickPlanScreen() {
         lat: spot.coordinates.latitude,
         lng: spot.coordinates.longitude,
       })),
->>>>>>> 939b30f (first commit)
       startTime: '14:00',
       totalDuration: duration,
       pinnedSpots: [],

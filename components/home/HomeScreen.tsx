@@ -46,13 +46,6 @@ export function HomeScreen() {
     });
 
     try {
-<<<<<<< HEAD
-      const places = await getNearbyPlaces(selectedStation, 2.5);
-      console.log(`Found ${places.length} places near ${selectedStation}`);
-
-      if (places.length === 0) {
-        alert('近くにスポットが見つかりませんでした');
-=======
       // 新しい検索ロジックを使用
       const { searchSpots } = await import('@/lib/searchLogic');
 
@@ -72,52 +65,10 @@ export function HomeScreen() {
 
       if (searchResults.length === 0) {
         alert('おすすめのスポットが見つかりませんでした');
->>>>>>> 939b30f (first commit)
         setIsLoading(false);
         return;
       }
 
-<<<<<<< HEAD
-      const preferredCategories = [
-        'カフェ', 'レストラン', 'ファストフード', 'バー', '居酒屋',
-        '公園', '美術館', 'ギャラリー', '観光スポット', '展望台', 'アート',
-        'ショップ', 'ショッピングモール', '書店', 'アパレル',
-        '寺社', '図書館', '映画館', '劇場', 'スポーツ施設'
-      ];
-
-      const preferredPlaces = places.filter(place =>
-        preferredCategories.includes(place.category)
-      );
-
-      const selectedPlaces = (preferredPlaces.length > 0 ? preferredPlaces : places)
-        .slice(0, 10);
-
-      console.log(`Selected ${selectedPlaces.length} places for plan`);
-
-      const now = new Date();
-      let currentTime = now.getTime();
-      const spots = [];
-
-      const minSpotDuration = 30;
-      const maxSpotDuration = 60;
-
-      for (let i = 0; i < selectedPlaces.length; i++) {
-        const place = selectedPlaces[i];
-        const walkingTime = i === 0 ? getWalkingTime(place.distance || 0) : Math.floor(Math.random() * 5) + 3;
-
-        currentTime += walkingTime * 60000;
-
-        const spotDuration = Math.floor(Math.random() * (maxSpotDuration - minSpotDuration + 1)) + minSpotDuration;
-
-        const timeSpent = (i === 0 ? walkingTime : 0);
-        const totalTimeUsed = spots.reduce((sum, s) => sum + s.duration, 0) +
-                              timeSpent + spotDuration;
-
-        if (totalTimeUsed > duration * 0.9) {
-          break;
-        }
-
-=======
       // 時間に応じてスポット数を決定
       const maxSpots = Math.min(5, Math.floor(duration / 45));
       const selectedSpots = searchResults.slice(0, maxSpots);
@@ -132,32 +83,10 @@ export function HomeScreen() {
         currentTime += walkingTime * 60000;
 
         const spotDuration = Math.min(spot.estimatedTime, Math.floor(duration / selectedSpots.length));
->>>>>>> 939b30f (first commit)
         const arrivalTime = new Date(currentTime);
         currentTime += spotDuration * 60000;
 
         spots.push({
-<<<<<<< HEAD
-          id: place.id,
-          name: place.name,
-          category: place.category,
-          description: `${place.category}スポット`,
-          time: arrivalTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-          duration: spotDuration,
-          lat: place.lat,
-          lng: place.lon,
-        });
-
-        if (spots.length >= 5) {
-          break;
-        }
-      }
-
-      console.log(`Generated plan with ${spots.length} spots`);
-
-      if (spots.length === 0) {
-        alert('プランを生成できませんでした。別の駅を選択してください。');
-=======
           id: spot.id,
           name: spot.name,
           category: spot.category === 'culture' ? '観光' :
@@ -176,7 +105,6 @@ export function HomeScreen() {
 
       if (spots.length === 0) {
         alert('プランを生成できませんでした。条件を変更してお試しください。');
->>>>>>> 939b30f (first commit)
         setIsLoading(false);
         return;
       }
