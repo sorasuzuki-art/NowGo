@@ -11,7 +11,7 @@ export interface SearchParams {
   mode: 'おまかせ' | '定番' | '新規開拓' | '冒険' | 'バランス';
   weather: '晴れ' | '曇り' | '雨' | '風強め';
   style?: 'ゆっくり' | 'ほどほど' | 'アクティブ'; // 新しい条件
-  meguri?: 'カフェ' | '服' | '雑貨'; // 新しい条件（任意）
+  locationType?: '屋内' | '屋外'; // 新しい条件（任意）
 }
 
 export interface ScoredSpot extends TestSpot {
@@ -323,32 +323,25 @@ function scoreByStyle(spot: TestSpot, style?: string): { score: number; reasons:
   return { score, reasons };
 }
 
-// 巡り方ロジック（新しい条件）
-function filterByMeguri(spots: TestSpot[], meguri?: string): TestSpot[] {
-  if (!meguri) return spots;
+// 屋内/屋外フィルタ（新しい条件）
+function filterByLocationType(spots: TestSpot[], locationType?: string): TestSpot[] {
+  if (!locationType) return spots;
 
-  switch (meguri) {
-    case 'カフェ':
+  switch (locationType) {
+    case '屋内':
       return spots.filter(spot =>
-        spot.category === 'food' &&
-        (spot.tags.includes('カフェ') || spot.name.includes('カフェ'))
+        spot.features.includes('屋内') ||
+        spot.category === 'culture' ||
+        (spot.category === 'food' && !spot.features.includes('屋外')) ||
+        (spot.category === 'shopping')
       );
 
-    case '服':
+    case '屋外':
       return spots.filter(spot =>
-        spot.category === 'shopping' &&
-        (spot.tags.includes('ファッション') ||
-         spot.tags.includes('服') ||
-         spot.name.includes('ファッション') ||
-         spot.name.includes('アパレル'))
-      );
-
-    case '雑貨':
-      return spots.filter(spot =>
-        spot.category === 'shopping' &&
-        (spot.tags.includes('雑貨') ||
-         spot.tags.includes('インテリア') ||
-         spot.name.includes('雑貨'))
+        spot.features.includes('屋外') ||
+        spot.category === 'nature' ||
+        spot.tags.includes('散歩') ||
+        spot.tags.includes('公園')
       );
 
     default:
@@ -361,9 +354,9 @@ export function searchSpots(params: SearchParams): ScoredSpot[] {
   // ステップ1: 時間フィルタ
   let filteredSpots = filterByTime(testSpots, params.availableTime);
 
-  // 新しい条件: 巡り方フィルタ（特定ジャンルのみでプラン生成）
-  if (params.meguri) {
-    filteredSpots = filterByMeguri(filteredSpots, params.meguri);
+  // 新しい条件: 屋内/屋外フィルタ
+  if (params.locationType) {
+    filteredSpots = filterByLocationType(filteredSpots, params.locationType);
   }
 
   // 各スポットをスコアリング

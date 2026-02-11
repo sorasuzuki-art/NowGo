@@ -18,7 +18,7 @@ import { reverseGeocode } from '@/lib/geocoding';
 const TIME_OPTIONS = ['60分', '90分', '120分', '150分', '半日', '1日'];
 const MODE_OPTIONS = ['定番', '新規開拓', '冒険'];
 const STYLE_OPTIONS = ['ゆっくり', 'ほどほど', 'アクティブ'];
-const MEGURI_OPTIONS = ['カフェ', '服', '雑貨'];
+const LOCATION_TYPE_OPTIONS = ['屋内', '屋外'];
 const WEATHER_OPTIONS = ['晴れ', '曇り', '雨', '雪'];
 const WALK_RANGE_OPTIONS = [10, 20, 30, 40, 50, 60];
 
@@ -93,7 +93,7 @@ export function DashboardScreen() {
   const [selectedTime, setSelectedTime] = useState('90分'); // デフォルト90分
   const [selectedMode, setSelectedMode] = useState('定番'); // デフォルト定番
   const [selectedStyle, setSelectedStyle] = useState('ほどほど'); // デフォルトほどほど
-  const [selectedMeguri, setSelectedMeguri] = useState(''); // 任意選択
+  const [selectedLocationType, setSelectedLocationType] = useState(''); // 任意選択
   // 新しい条件: 日時・時間・天気
   const [selectedDate, setSelectedDate] = useState(getCurrentDate()); // デフォルトは今日
   const [selectedDateTime, setSelectedDateTime] = useState(getCurrentTime()); // デフォルトは現在時刻
@@ -101,7 +101,7 @@ export function DashboardScreen() {
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
-  const [showMeguriDropdown, setShowMeguriDropdown] = useState(false);
+  const [showLocationTypeDropdown, setShowLocationTypeDropdown] = useState(false);
   const [showDateTimeDropdown, setShowDateTimeDropdown] = useState(false);
   const [showWeatherDropdown, setShowWeatherDropdown] = useState(false);
   const [showWalkRangeDropdown, setShowWalkRangeDropdown] = useState(false);
@@ -123,7 +123,7 @@ export function DashboardScreen() {
         setShowTimeDropdown(false);
         setShowModeDropdown(false);
         setShowStyleDropdown(false);
-        setShowMeguriDropdown(false);
+        setShowLocationTypeDropdown(false);
         setShowDateTimeDropdown(false);
         setShowWeatherDropdown(false);
         setShowWalkRangeDropdown(false);
@@ -139,8 +139,14 @@ export function DashboardScreen() {
 
   // GPS位置取得関数（モーダル/アラートは出さず、入力欄に住所を反映する）
   const getCurrentLocation = async () => {
+    // HTTPS環境チェック
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      setLocationError('GPS機能はHTTPS環境でのみ利用可能です');
+      return;
+    }
+
     if (!navigator.geolocation) {
-      setLocationError('GPS機能が利用できません');
+      setLocationError('このブラウザではGPS機能を利用できません');
       return;
     }
 
@@ -151,11 +157,14 @@ export function DashboardScreen() {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           resolve,
-          reject,
+          (error) => {
+            console.error('Geolocation error:', error);
+            reject(error);
+          },
           {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000
+            timeout: 8000, // タイムアウトを8秒に短縮
+            maximumAge: 300000 // キャッシュ時間を5分に延長
           }
         );
       });
@@ -165,10 +174,24 @@ export function DashboardScreen() {
       // 住所（表示用）を取得。失敗しても緯度経度は保持する。
       let addressLabel = '現在地';
       try {
-        const addr = await reverseGeocode(latitude, longitude);
-        if (addr) addressLabel = addr;
-      } catch {
-        // ignore (prototype)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+
+        const addr = await reverseGeocode(latitude, longitude, controller.signal);
+        clearTimeout(timeoutId);
+
+        if (addr) {
+          // 長すぎる住所を短縮
+          const parts = addr.split(',');
+          if (parts.length > 3) {
+            addressLabel = parts.slice(0, 3).join(',');
+          } else {
+            addressLabel = addr;
+          }
+        }
+      } catch (geocodeError) {
+        console.warn('Reverse geocoding failed:', geocodeError);
+        // 住所取得に失敗してもGPS位置情報は使用
       }
 
       setStartLocation({
@@ -178,9 +201,20 @@ export function DashboardScreen() {
         source: 'gps',
         accuracy: Number.isFinite(accuracy) ? accuracy : null,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('GPS位置取得エラー:', error);
-      setLocationError('位置情報を取得できませんでした');
+
+      let errorMessage = '位置情報を取得できませんでした';
+
+      if (error.code === 1) {
+        errorMessage = '位置情報の許可が必要です';
+      } else if (error.code === 2) {
+        errorMessage = '位置情報を取得できませんでした（電波が弱い可能性があります）';
+      } else if (error.code === 3) {
+        errorMessage = '位置情報の取得がタイムアウトしました';
+      }
+
+      setLocationError(errorMessage);
     } finally {
       setIsGettingLocation(false);
     }
@@ -217,7 +251,7 @@ export function DashboardScreen() {
       mode: selectedMode as any,
       weather: selectedWeather as any,
       style: selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ' | undefined,
-      meguri: (selectedMeguri as 'カフェ' | '服' | '雑貨') || undefined,
+      locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
       // 追加: 出発地（緯度経度）と遊ぶ範囲（徒歩分）
       origin: startLocation.lat != null && startLocation.lng != null ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
       walkRangeMinutes,
@@ -415,7 +449,7 @@ export function DashboardScreen() {
                         setShowTimeDropdown(false);
                         setShowModeDropdown(false);
                         setShowStyleDropdown(false);
-                        setShowMeguriDropdown(false);
+                        setShowLocationTypeDropdown(false);
                         setShowDateTimeDropdown(false);
                         setShowWeatherDropdown(false);
                       }}
@@ -500,7 +534,7 @@ export function DashboardScreen() {
                     onClick={() => {
                       setShowModeDropdown(!showModeDropdown);
                       setShowStyleDropdown(false);
-                      setShowMeguriDropdown(false);
+                      setShowLocationTypeDropdown(false);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all duration-200"
                   >
@@ -529,7 +563,7 @@ export function DashboardScreen() {
                     onClick={() => {
                       setShowStyleDropdown(!showStyleDropdown);
                       setShowModeDropdown(false);
-                      setShowMeguriDropdown(false);
+                      setShowLocationTypeDropdown(false);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all duration-200"
                   >
@@ -551,36 +585,35 @@ export function DashboardScreen() {
                   )}
                 </div>
 
-                {/* 何か巡る？ */}
+                {/* 屋内/屋外 */}
                 <div className="relative dropdown-container">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">何か巡る？（任意）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">屋内 / 屋外（任意）</label>
                   <button
                     onClick={() => {
-                      setShowMeguriDropdown(!showMeguriDropdown);
+                      setShowLocationTypeDropdown(!showLocationTypeDropdown);
                       setShowModeDropdown(false);
                       setShowStyleDropdown(false);
-                      setShowWalkRangeDropdown(false);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all duration-200"
                   >
-                    <span className="truncate">{selectedMeguri || '未選択'}</span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${showMeguriDropdown ? 'rotate-180' : ''}`} />
+                    <span className="truncate">{selectedLocationType || '未選択'}</span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${showLocationTypeDropdown ? 'rotate-180' : ''}`} />
                   </button>
-                  {showMeguriDropdown && (
+                  {showLocationTypeDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl overflow-visible z-[9999] border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
                       <button
-                        onClick={() => { setSelectedMeguri(''); setShowMeguriDropdown(false); }}
-                        className={`w-full px-4 py-3 text-left text-sm transition-colors ${selectedMeguri === '' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                        onClick={() => { setSelectedLocationType(''); setShowLocationTypeDropdown(false); }}
+                        className={`w-full px-4 py-3 text-left text-sm transition-colors ${selectedLocationType === '' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                       >
                         未選択
                       </button>
-                      {MEGURI_OPTIONS.map((meguri) => (
+                      {LOCATION_TYPE_OPTIONS.map((locationType) => (
                         <button
-                          key={meguri}
-                          onClick={() => { setSelectedMeguri(meguri); setShowMeguriDropdown(false); }}
-                          className={`w-full px-4 py-3 text-left text-sm transition-colors ${selectedMeguri === meguri ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          key={locationType}
+                          onClick={() => { setSelectedLocationType(locationType); setShowLocationTypeDropdown(false); }}
+                          className={`w-full px-4 py-3 text-left text-sm transition-colors ${selectedLocationType === locationType ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
-                          {meguri}
+                          {locationType}
                         </button>
                       ))}
                     </div>

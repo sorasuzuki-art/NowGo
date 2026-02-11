@@ -6,9 +6,7 @@ import { useNowgoStore } from '@/hooks/useNowgoStore';
 import { AuthScreen } from '@/components/auth/AuthScreen';
 import { DashboardScreen } from '@/components/dashboard/DashboardScreen';
 import { QuickPlanScreen } from '@/components/dashboard/QuickPlanScreen';
-import { MoodScreen } from '@/components/dashboard/MoodScreen';
 import { ThemesScreen } from '@/components/dashboard/ThemesScreen';
-import { NearbyScreen } from '@/components/dashboard/NearbyScreen';
 import { ProfileScreen } from '@/components/dashboard/ProfileScreen';
 import { PlanScreen } from '@/components/plan/PlanScreen';
 import { ExecutionScreen } from '@/components/execution/ExecutionScreen';
@@ -49,9 +47,7 @@ export default function Home() {
     <>
       {currentScreen === 'dashboard' && <DashboardScreen />}
       {currentScreen === 'quickplan' && <QuickPlanScreen />}
-      {currentScreen === 'mood' && <MoodScreen />}
       {currentScreen === 'themes' && <ThemesScreen />}
-      {currentScreen === 'nearby' && <NearbyScreen />}
       {currentScreen === 'profile' && <ProfileScreen />}
       {currentScreen === 'plan' && <PlanScreen />}
       {currentScreen === 'executing' && <ExecutionScreen />}
