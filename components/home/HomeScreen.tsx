@@ -19,28 +19,34 @@ export function HomeScreen() {
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
-  const { selectedStation, duration, groupSize, setStation, setDuration, setGroupSize, setScreen, setPlan } =
+  const { startLocation, duration, groupSize, setStartLocation, setDuration, setGroupSize, setScreen, setPlan } =
     useNowgoStore();
 
   useEffect(() => {
     if (!hasLoadedInitial) {
       const last = getLastConditions();
       if (last) {
-        setStation(last.station);
+        setStartLocation({
+          label: last.station,
+          lat: null,
+          lng: null,
+          source: 'manual',
+          accuracy: null,
+        });
         setDuration(last.duration);
         setGroupSize(last.groupSize);
       }
       setHasLoadedInitial(true);
     }
-  }, [hasLoadedInitial, setStation, setDuration, setGroupSize]);
+  }, [hasLoadedInitial, setStartLocation, setDuration, setGroupSize]);
 
   const handleCreatePlan = async () => {
-    if (!selectedStation) return;
+    if (!startLocation.label) return;
 
     setIsLoading(true);
 
     saveLastConditions({
-      station: selectedStation,
+      station: startLocation.label,
       duration,
       groupSize,
     });
@@ -125,7 +131,7 @@ export function HomeScreen() {
     }
   };
 
-  const canCreate = selectedStation && duration > 0 && groupSize > 0;
+  const canCreate = startLocation.label && duration > 0 && groupSize > 0;
   const hours = Math.floor(duration / 60);
   const minutes = duration % 60;
   const durationText = hours > 0 ? `${hours}時間${minutes > 0 ? minutes + '分' : ''}` : `${minutes}分`;
@@ -155,12 +161,12 @@ export function HomeScreen() {
             <button
               onClick={() => setIsStationModalOpen(true)}
               className={`w-full px-6 py-4 rounded-xl text-left font-medium transition-all ${
-                selectedStation
+                startLocation.label
                   ? 'bg-[#0084FF] text-white hover:bg-[#0070DD] shadow-sm'
                   : 'bg-gray-50 text-gray-400 border-2 border-dashed border-gray-300 hover:border-gray-400'
               }`}
             >
-              {selectedStation || '駅を選択してください'}
+              {startLocation.label || '駅を選択してください'}
             </button>
           </div>
 

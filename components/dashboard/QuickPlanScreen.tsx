@@ -24,26 +24,34 @@ export function QuickPlanScreen() {
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
-  const { selectedStation, duration, groupSize, setStation, setDuration, setGroupSize, setScreen, setPlan } =
+  const { startLocation, duration, groupSize, setStartLocation, setDuration, setGroupSize, setScreen, setPlan } =
     useNowgoStore();
 
   useEffect(() => {
     if (!hasLoadedInitial) {
       const last = getLastConditions();
       if (last) {
-        if (last.station) setStation(last.station);
+        if (last.station) {
+          setStartLocation({
+            label: last.station,
+            lat: null,
+            lng: null,
+            source: 'manual',
+            accuracy: null,
+          });
+        }
         if (last.duration) setDuration(last.duration);
         if (last.groupSize) setGroupSize(last.groupSize);
       }
       setHasLoadedInitial(true);
     }
-  }, [hasLoadedInitial, setStation, setDuration, setGroupSize]);
+  }, [hasLoadedInitial, setStartLocation, setDuration, setGroupSize]);
 
   const handleCreatePlan = async () => {
-    if (!selectedStation || duration === 0 || groupSize === 0) return;
+    if (!startLocation.label || duration === 0 || groupSize === 0) return;
 
     saveLastConditions({
-      station: selectedStation,
+      station: startLocation.label,
       duration,
       groupSize,
     });
@@ -97,7 +105,7 @@ export function QuickPlanScreen() {
     setIsLoading(false);
   };
 
-  const canCreate = selectedStation && duration > 0 && groupSize > 0;
+  const canCreate = startLocation.label && duration > 0 && groupSize > 0;
 
   const getEndTime = () => {
     const now = new Date();
@@ -149,18 +157,18 @@ export function QuickPlanScreen() {
             <button
               onClick={() => setIsStationModalOpen(true)}
               className={`w-full px-4 py-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
-                selectedStation
+                startLocation.label
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                selectedStation ? 'bg-blue-500' : 'bg-gray-100'
+                startLocation.label ? 'bg-blue-500' : 'bg-gray-100'
               }`}>
-                <Train className={`w-5 h-5 ${selectedStation ? 'text-white' : 'text-gray-400'}`} />
+                <Train className={`w-5 h-5 ${startLocation.label ? 'text-white' : 'text-gray-400'}`} />
               </div>
-              <span className={`font-medium ${selectedStation ? 'text-gray-900' : 'text-gray-400'}`}>
-                {selectedStation || 'Select a station'}
+              <span className={`font-medium ${startLocation.label ? 'text-gray-900' : 'text-gray-400'}`}>
+                {startLocation.label || 'Select a station'}
               </span>
             </button>
           </div>
