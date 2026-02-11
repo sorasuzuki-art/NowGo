@@ -185,13 +185,15 @@ export function DashboardScreen() {
   };
 
   return (
-    <div
-      className="relative min-h-screen bg-cover bg-center bg-fixed"
-      style={{
-        backgroundImage: `url('https://images.pexels.com/photos/2614818/pexels-photo-2614818.jpeg?auto=compress&cs=tinysrgb&w=1920')`,
-      }}
-    >
-      <div className="absolute inset-0 bg-black/50" />
+    <div className="relative min-h-screen">
+      {/* 背景画像 — fixed で viewport 全体を覆い、モバイルスクロールでも白が出ない */}
+      <div
+        className="fixed inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url('https://images.pexels.com/photos/2614818/pexels-photo-2614818.jpeg?auto=compress&cs=tinysrgb&w=1920')`,
+        }}
+      />
+      <div className="fixed inset-0 bg-black/50" />
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* ── Header ── */}
