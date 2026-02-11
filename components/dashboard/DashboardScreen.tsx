@@ -64,7 +64,12 @@ export function DashboardScreen() {
 
   // GPS位置取得
   const getCurrentLocation = async () => {
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    const host = window.location.hostname;
+    const isSecureContext = window.location.protocol === 'https:'
+      || host === 'localhost'
+      || host === '127.0.0.1'
+      || host === '[::1]';
+    if (!isSecureContext) {
       setLocationError('GPS機能はHTTPS環境でのみ利用可能です');
       return;
     }
