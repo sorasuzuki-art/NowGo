@@ -1,45 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Clock, ChevronDown, X, Navigation, MapPin, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+
+const getCategoryColor = (category: string) => {
+  const colors: Record<string, { dot: string; bg: string; text: string; glow: string }> = {
+    '観光': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', glow: 'rgba(59,130,246,0.25)' },
+    '公園': { dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', glow: 'rgba(16,185,129,0.25)' },
+    'ショップ': { dot: 'bg-violet-500', bg: 'bg-violet-50', text: 'text-violet-700', glow: 'rgba(139,92,246,0.25)' },
+    'カフェ': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', glow: 'rgba(245,158,11,0.25)' },
+  };
+  return colors[category] || { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700', glow: 'rgba(107,114,128,0.25)' };
+};
 
 export function ExecutionScreen() {
   const { currentPlan, setScreen } = useNowgoStore();
   const [currentSpotIndex, setCurrentSpotIndex] = useState(0);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [expandSchedule, setExpandSchedule] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!currentPlan) {
-    return null;
-  }
+  if (!currentPlan) return null;
 
   const currentSpot = currentPlan.spots[currentSpotIndex];
   const nextSpot = currentPlan.spots[currentSpotIndex + 1];
-  const progress = Math.min((elapsedTime / (currentSpot.duration * 60)) * 100, 100);
+  const isLastSpot = currentSpotIndex === currentPlan.spots.length - 1;
+  const currentColor = getCategoryColor(currentSpot.category);
+  const remainingSpots = currentPlan.spots.slice(currentSpotIndex + 2);
 
   const handleNext = () => {
     if (currentSpotIndex < currentPlan.spots.length - 1) {
       setCurrentSpotIndex(currentSpotIndex + 1);
-      setElapsedTime(0);
     }
   };
 
@@ -48,194 +39,211 @@ export function ExecutionScreen() {
     setScreen('dashboard');
   };
 
-  const isLastSpot = currentSpotIndex === currentPlan.spots.length - 1;
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div
-        className="relative h-40 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('https://images.pexels.com/photos/1853542/pexels-photo-1853542.jpeg?auto=compress&cs=tinysrgb&w=1920')`,
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
-        <header className="relative z-10 px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500 rounded-full">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-white">Live</span>
-              </div>
-              <span className="text-white/80 text-sm tabular-nums">{formatTime(elapsedTime)}</span>
-            </div>
-            <button
-              onClick={() => setShowExitDialog(true)}
-              className="p-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </header>
+    <div className="min-h-screen bg-white">
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popIn {
+          0% { opacity: 0; transform: scale(0.8); }
+          70% { transform: scale(1.03); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
 
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-2 text-white">
-              <MapPin className="w-4 h-4" />
-              <span className="text-sm font-medium">
-                Spot {currentSpotIndex + 1} of {currentPlan.spots.length}
-              </span>
-            </div>
-          </div>
+      {/* ── Top bar ── */}
+      <div className="px-5 pt-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <button
+            onClick={() => setShowExitDialog(true)}
+            className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-900" />
+          </button>
+          <span className="text-sm text-gray-400 tabular-nums">
+            {currentSpotIndex + 1} / {currentPlan.spots.length}
+          </span>
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col px-6 py-6 overflow-y-auto pb-32 -mt-4">
-        <div className="max-w-4xl mx-auto w-full space-y-4">
-          <div className="bg-white border-2 border-green-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-green-700 uppercase tracking-wider">Current Location</span>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{currentSpot.name}</h2>
+      {/* ── Step dots ── */}
+      <div className="flex items-center justify-center gap-2.5 pt-8">
+        {currentPlan.spots.map((spot, i) => {
+          const dotColor = getCategoryColor(spot.category);
+          return (
+            <div
+              key={i}
+              className={`rounded-full transition-all duration-500 ${
+                i < currentSpotIndex
+                  ? `w-2.5 h-2.5 ${dotColor.dot} opacity-40`
+                  : i === currentSpotIndex
+                  ? `w-3.5 h-3.5 ${dotColor.dot}`
+                  : 'w-2.5 h-2.5 bg-gray-200'
+              }`}
+              style={i === currentSpotIndex ? {
+                boxShadow: `0 0 0 6px ${dotColor.glow}`,
+                animation: 'popIn 0.4s ease-out both',
+              } : undefined}
+            />
+          );
+        })}
+      </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1 font-medium">Arrival</p>
-                <p className="text-xl font-bold text-gray-900 tabular-nums">{currentSpot.time}</p>
-              </div>
+      {/* ── Current spot ── */}
+      <div
+        className="px-5 pt-12 pb-8"
+        key={currentSpotIndex}
+        style={{ animation: 'fadeInUp 0.4s ease-out both' }}
+      >
+        <div className="max-w-2xl mx-auto text-center">
+          <span className={`inline-block text-xs px-3 py-1 rounded-full font-medium ${currentColor.bg} ${currentColor.text} mb-4`}>
+            {currentSpot.category}
+          </span>
+          <h1 className="text-3xl font-bold text-gray-900 leading-tight">
+            {currentSpot.name}
+          </h1>
+          {currentSpot.description && (
+            <p className="text-gray-400 text-sm mt-3 max-w-[300px] mx-auto leading-relaxed">
+              {currentSpot.description}
+            </p>
+          )}
+        </div>
+      </div>
 
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1 font-medium">Duration</p>
-                <p className="text-xl font-bold text-gray-900">{currentSpot.duration}min</p>
-              </div>
-            </div>
+      {/* ── Divider ── */}
+      <div className="max-w-2xl mx-auto px-5">
+        <div className="h-px bg-gray-100" />
+      </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 font-medium">Progress</span>
-                <span className="text-green-600 font-bold tabular-nums">{Math.round(progress)}%</span>
-              </div>
-              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-1000 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-sm text-gray-500 text-right tabular-nums">
-                {Math.max(0, currentSpot.duration - Math.floor(elapsedTime / 60))} min remaining
-              </p>
-            </div>
-          </div>
+      {/* ── Next & Schedule ── */}
+      <div className="px-5 pt-6 pb-36">
+        <div className="max-w-2xl mx-auto space-y-4">
 
-          {nextSpot && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Navigation className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Up Next</span>
+          {/* つぎ */}
+          {nextSpot && (() => {
+            const nextColor = getCategoryColor(nextSpot.category);
+            return (
+              <div style={{ animation: 'fadeInUp 0.4s ease-out 150ms both' }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-xs font-bold text-gray-400 tracking-wider">つぎ</p>
+                  <span className="text-[11px] text-gray-300">徒歩 5分</span>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 hover:bg-gray-100/80 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-900">{nextSpot.name}</h3>
+                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${nextColor.bg} ${nextColor.text}`}>
+                      {nextSpot.category}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-4">{nextSpot.name}</h3>
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  5 min walk
-                </span>
-                <span>Arriving at {nextSpot.time}</span>
-              </div>
+            );
+          })()}
+
+          {/* 最後のスポット */}
+          {isLastSpot && (
+            <div
+              className="text-center py-6"
+              style={{ animation: 'fadeInUp 0.4s ease-out 150ms both' }}
+            >
+              <p className="text-sm font-medium text-gray-900">最後のスポットです</p>
+              <p className="text-xs text-gray-400 mt-1">楽しんで！</p>
             </div>
           )}
 
-          {currentPlan.spots.slice(currentSpotIndex + 1).length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          {/* この後 */}
+          {remainingSpots.length > 0 && (
+            <div style={{ animation: 'fadeInUp 0.4s ease-out 250ms both' }}>
               <button
                 onClick={() => setExpandSchedule(!expandSchedule)}
-                className="flex items-center justify-between w-full"
+                className="flex items-center justify-between w-full py-2"
               >
-                <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Remaining Schedule</h3>
+                <p className="text-xs font-bold text-gray-400 tracking-wider">この後</p>
                 <ChevronDown
-                  className={`w-5 h-5 text-gray-400 transition-transform ${expandSchedule ? 'rotate-180' : ''}`}
+                  className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${
+                    expandSchedule ? 'rotate-180' : ''
+                  }`}
                 />
               </button>
-
-              {expandSchedule && (
-                <div className="space-y-2 mt-4">
-                  {currentPlan.spots.slice(currentSpotIndex + 1).map((spot, idx) => (
-                    <div
-                      key={spot.id}
-                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                        {currentSpotIndex + idx + 2}
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-out ${
+                  expandSchedule ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="space-y-1 pt-1">
+                  {remainingSpots.map((spot) => {
+                    const spotColor = getCategoryColor(spot.category);
+                    return (
+                      <div key={spot.id} className="flex items-center gap-3 py-2.5">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${spotColor.dot}`} />
+                        <p className="text-sm text-gray-600 flex-1 min-w-0 truncate">{spot.name}</p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm">{spot.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{spot.time} - {spot.duration}min</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
-      </main>
+      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4">
-        <div className="max-w-4xl mx-auto space-y-3">
+      {/* ── Bottom bar ── */}
+      <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-5 pt-3 pb-6">
+        <div className="max-w-2xl mx-auto space-y-2">
           {isLastSpot ? (
             <button
               onClick={() => setShowExitDialog(true)}
-              className="w-full py-4 px-6 rounded-xl font-semibold transition-all bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-2xl font-bold text-white bg-gradient-to-r from-emerald-400 to-teal-500 active:scale-[0.97] transition-all shadow-lg shadow-emerald-500/25"
             >
-              <CheckCircle2 className="w-5 h-5" />
-              Complete Plan
+              プランを完了する
             </button>
           ) : (
             <>
               <button
                 onClick={handleNext}
-                className="w-full py-4 px-6 rounded-xl font-semibold transition-all bg-blue-500 text-white hover:bg-blue-600 shadow-lg flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-2xl font-bold text-white bg-gradient-to-r from-blue-500 to-indigo-500 active:scale-[0.97] transition-all shadow-lg shadow-indigo-500/25"
               >
-                <Navigation className="w-5 h-5" />
-                Next Spot
+                次のスポットへ
               </button>
               <button
                 onClick={() => setShowExitDialog(true)}
-                className="w-full py-3 px-6 rounded-xl font-medium transition-all bg-white text-gray-600 border border-gray-300 hover:bg-gray-50"
+                className="w-full flex items-center justify-center py-3 text-sm text-gray-400 hover:text-red-500 active:scale-[0.97] transition-all"
               >
-                End Plan
+                プランを終了する
               </button>
             </>
           )}
         </div>
       </div>
 
-      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-        <AlertDialogContent className="bg-white border border-gray-200 shadow-xl rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900 text-lg font-bold">End this plan?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-500 text-sm">
-              You'll return to the home screen. Your progress won't be saved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50 rounded-xl py-3 px-5 font-medium">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleComplete}
-              className="bg-blue-500 text-white hover:bg-blue-600 rounded-xl py-3 px-5 font-medium"
-            >
-              End Plan
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* ── 終了確認 ── */}
+      {showExitDialog && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 z-50">
+          <div
+            className="bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 w-full sm:max-w-sm shadow-2xl"
+            style={{ animation: 'fadeInUp 0.3s ease-out both' }}
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-2">プランを終了しますか？</h3>
+            <p className="text-sm text-gray-500 mb-6">ホーム画面に戻ります。</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitDialog(false)}
+                className="flex-1 py-3.5 px-4 rounded-2xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 active:scale-[0.97] transition-all"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleComplete}
+                className="flex-1 py-3.5 px-4 rounded-2xl bg-red-500 text-white font-medium hover:bg-red-600 active:scale-[0.97] transition-all"
+              >
+                終了する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
