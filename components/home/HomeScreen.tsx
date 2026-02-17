@@ -24,19 +24,20 @@ export function HomeScreen() {
 
   useEffect(() => {
     if (!hasLoadedInitial) {
-      const last = getLastConditions();
-      if (last) {
-        setStartLocation({
-          label: last.station,
-          lat: null,
-          lng: null,
-          source: 'manual',
-          accuracy: null,
-        });
-        setDuration(last.duration);
-        setGroupSize(last.groupSize);
-      }
-      setHasLoadedInitial(true);
+      getLastConditions().then((last) => {
+        if (last) {
+          setStartLocation({
+            label: last.station,
+            lat: null,
+            lng: null,
+            source: 'manual',
+            accuracy: null,
+          });
+          setDuration(last.duration);
+          setGroupSize(last.groupSize);
+        }
+        setHasLoadedInitial(true);
+      });
     }
   }, [hasLoadedInitial, setStartLocation, setDuration, setGroupSize]);
 
@@ -45,7 +46,7 @@ export function HomeScreen() {
 
     setIsLoading(true);
 
-    saveLastConditions({
+    await saveLastConditions({
       station: startLocation.label,
       duration,
       groupSize,

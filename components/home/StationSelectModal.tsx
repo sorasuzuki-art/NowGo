@@ -39,8 +39,9 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
 
   useEffect(() => {
     if (isOpen) {
-      const recent = getRecentStations();
-      setRecentStations(recent.map((s) => s.name));
+      getRecentStations().then((recent) => {
+        setRecentStations(recent.map((s) => s.name));
+      });
     }
   }, [isOpen]);
 
@@ -79,7 +80,7 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
         source: 'manual',
         accuracy: null,
       });
-      addRecentStation(stationName);
+      await addRecentStation(stationName);
       onClose();
     } finally {
       setIsSaving(false);

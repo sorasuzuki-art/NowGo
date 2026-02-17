@@ -41,3 +41,26 @@ export type UserPreferences = {
   created_at: string;
   updated_at: string;
 };
+
+export type UserSettings = {
+  id: string;
+  user_id: string;
+  recent_stations: Array<{ name: string; timestamp: number }>;
+  last_station: string | null;
+  last_duration: number;
+  last_group_size: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlanHistory = {
+  id: string;
+  user_id: string;
+  station: string;
+  duration: number;
+  group_size: number;
+  spots: any;
+  rating: number | null;
+  completed_at: string | null;
+  created_at: string;
+};

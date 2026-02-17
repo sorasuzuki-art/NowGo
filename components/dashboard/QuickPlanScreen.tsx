@@ -29,28 +29,29 @@ export function QuickPlanScreen() {
 
   useEffect(() => {
     if (!hasLoadedInitial) {
-      const last = getLastConditions();
-      if (last) {
-        if (last.station) {
-          setStartLocation({
-            label: last.station,
-            lat: null,
-            lng: null,
-            source: 'manual',
-            accuracy: null,
-          });
+      getLastConditions().then((last) => {
+        if (last) {
+          if (last.station) {
+            setStartLocation({
+              label: last.station,
+              lat: null,
+              lng: null,
+              source: 'manual',
+              accuracy: null,
+            });
+          }
+          if (last.duration) setDuration(last.duration);
+          if (last.groupSize) setGroupSize(last.groupSize);
         }
-        if (last.duration) setDuration(last.duration);
-        if (last.groupSize) setGroupSize(last.groupSize);
-      }
-      setHasLoadedInitial(true);
+        setHasLoadedInitial(true);
+      });
     }
   }, [hasLoadedInitial, setStartLocation, setDuration, setGroupSize]);
 
   const handleCreatePlan = async () => {
     if (!startLocation.label || duration === 0 || groupSize === 0) return;
 
-    saveLastConditions({
+    await saveLastConditions({
       station: startLocation.label,
       duration,
       groupSize,
