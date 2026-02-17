@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import {
   ArrowLeft,
@@ -8,17 +8,10 @@ import {
   Bookmark,
   Loader2,
   RefreshCw,
+  MapPin,
+  Sparkles,
+  Footprints,
 } from 'lucide-react';
-
-const getCategoryColor = (category: string) => {
-  const colors: Record<string, { dot: string; bg: string; text: string }> = {
-    '観光': { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-    '公園': { dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-    'ショップ': { dot: 'bg-violet-500', bg: 'bg-violet-50', text: 'text-violet-700' },
-    'カフェ': { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
-  };
-  return colors[category] || { dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-700' };
-};
 
 export function PlanScreen() {
   const { currentPlan, setScreen, togglePinSpot } = useNowgoStore();
@@ -26,8 +19,8 @@ export function PlanScreen() {
 
   if (!currentPlan) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <p className="text-gray-400">プランが見つかりません</p>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <p className="text-stone-400 text-sm">プランが見つかりません</p>
       </div>
     );
   }
@@ -39,125 +32,156 @@ export function PlanScreen() {
   };
 
   const pinnedCount = currentPlan.pinnedSpots.length;
-  const totalHours = Math.floor(currentPlan.totalDuration / 60);
-  const totalMinutes = currentPlan.totalDuration % 60;
-  const durationLabel = totalMinutes > 0
-    ? `${totalHours}時間${totalMinutes}分`
-    : `${totalHours}時間`;
+
+  const durationLabel = useMemo(() => {
+    const totalHours = Math.floor(currentPlan.totalDuration / 60);
+    const totalMinutes = currentPlan.totalDuration % 60;
+    if (totalHours <= 0) return `${totalMinutes}分のおでかけ`;
+    return totalMinutes > 0 ? `${totalHours}時間${totalMinutes}分のおでかけ` : `${totalHours}時間のおでかけ`;
+  }, [currentPlan.totalDuration]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.92); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
-
-      {/* ── Top bar ── */}
-      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl px-5 pt-4 pb-2">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-stone-50">
+      {/* Header */}
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-stone-100 px-5 py-3">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <button
             onClick={() => setScreen('dashboard')}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all"
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-stone-100 active:bg-stone-200 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-900" />
+            <ArrowLeft className="w-5 h-5 text-stone-800" />
           </button>
-          {pinnedCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 rounded-full">
-              <Bookmark className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />
-              <span className="text-blue-600 text-sm font-medium">{pinnedCount}件</span>
+          <span className="text-sm font-semibold text-stone-800">プラン</span>
+          {pinnedCount > 0 ? (
+            <div className="flex items-center gap-1">
+              <Bookmark className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
+              <span className="text-sm font-medium text-indigo-500 tabular-nums">{pinnedCount}</span>
             </div>
+          ) : (
+            <div className="w-8" />
           )}
         </div>
       </div>
 
-      {/* ── Hero ── */}
-      <div
-        className="px-5 pt-6 pb-8"
-        style={{ animation: 'scaleIn 0.5s ease-out both' }}
-      >
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">{durationLabel}のおでかけ</p>
-          <h1 className="text-3xl font-bold text-gray-900 mt-1">
-            {currentPlan.startTime} スタート
-          </h1>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
-              {currentPlan.spots.length} スポット
-            </span>
-            <span className="px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-500">
-              徒歩移動
-            </span>
+      {/* Hero */}
+      <div className="px-5 pt-6 pb-4">
+        <div className="max-w-lg mx-auto rounded-[28px] overflow-hidden bg-gradient-to-br from-indigo-500 via-indigo-500 to-cyan-400 shadow-sm">
+          <div className="p-7">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-white/80">{durationLabel}</p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white ring-1 ring-white/20">
+                <Sparkles className="w-3.5 h-3.5" />
+                今日はこれでいこ
+              </span>
+            </div>
+
+            <h1 className="text-3xl font-bold text-white mt-2 tracking-tight">
+              {currentPlan.startTime} スタート
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-2.5 mt-4">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
+                <MapPin className="w-4 h-4" />
+                {currentPlan.spots.length}スポット
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
+                <Footprints className="w-4 h-4" />
+                徒歩中心
+              </span>
+              {pinnedCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
+                  <Bookmark className="w-4 h-4" />
+                  お気に入り {pinnedCount}
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-white/75 mt-4">
+              迷ったら、とりあえず1つ目へ。テンポ良く進むほど楽しい。
+            </p>
           </div>
         </div>
       </div>
 
-      {/* ── Timeline ── */}
-      <div className="px-5 pb-32">
-        <div className="max-w-2xl mx-auto">
+      {/* Timeline */}
+      <div className="px-5 pb-36">
+        <div className="max-w-lg mx-auto">
           {currentPlan.spots.map((spot, index) => {
-            const color = getCategoryColor(spot.category);
             const isLast = index === currentPlan.spots.length - 1;
+            const isPinned = currentPlan.pinnedSpots.includes(spot.id);
+            const isNow = index === 0;
+
             return (
-              <div
-                key={spot.id}
-                className="flex gap-4"
-                style={{ animation: `fadeInUp 0.5s ease-out ${index * 100 + 200}ms both` }}
-              >
-                {/* Timeline column */}
+              <div key={spot.id} className="flex gap-4">
+                {/* Left rail */}
                 <div className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-sm`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                      isNow ? 'bg-indigo-500 text-white' : 'bg-stone-200 text-stone-600'
+                    }`}
+                  >
                     {index + 1}
                   </div>
-                  {!isLast && (
-                    <div className="w-px flex-1 bg-gray-100 mt-1" />
-                  )}
+                  {!isLast && <div className="w-px flex-1 bg-stone-200 my-1" />}
                 </div>
 
-                {/* Content column */}
-                <div className={`flex-1 min-w-0 ${isLast ? 'pb-4' : 'pb-6'}`}>
-                  <p className="text-sm text-gray-400 tabular-nums mb-2">{spot.time}</p>
+                {/* Card */}
+                <div className={`flex-1 min-w-0 ${isLast ? 'pb-4' : 'pb-5'}`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-stone-400 mb-1.5 tabular-nums">{spot.time}</p>
+                    {isNow && (
+                      <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                        NOW
+                      </span>
+                    )}
+                  </div>
 
-                  {/* Card */}
-                  <div className="bg-gray-50 rounded-2xl p-5 hover:bg-gray-100/80 transition-colors">
+                  <div
+                    className={`bg-white rounded-3xl p-5 shadow-sm ring-1 transition-transform duration-200 active:scale-[0.99] ${
+                      isNow ? 'ring-indigo-100' : 'ring-stone-100'
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${color.bg} ${color.text}`}>
+                        <h3 className="text-base font-bold text-stone-900 truncate">{spot.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-stone-500">
+                          <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5">
                             {spot.category}
                           </span>
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-stone-100 px-2 py-0.5">
                             <Clock className="w-3 h-3" />
                             {spot.duration}分
                           </span>
+                          {isNow && (
+                            <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-600 px-2 py-0.5">
+                              まずここ
+                            </span>
+                          )}
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900">{spot.name}</h3>
                       </div>
+
                       <button
                         onClick={() => togglePinSpot(spot.id)}
-                        className={`p-2 rounded-xl active:scale-90 transition-all flex-shrink-0 ${
-                          currentPlan.pinnedSpots.includes(spot.id)
-                            ? 'bg-blue-50 text-blue-500'
-                            : 'text-gray-300 hover:text-gray-500 hover:bg-white'
+                        className={`p-2 rounded-2xl transition-colors flex-shrink-0 ${
+                          isPinned
+                            ? 'bg-indigo-50 text-indigo-600'
+                            : 'text-stone-300 hover:text-stone-400 hover:bg-stone-50'
                         }`}
+                        aria-label={isPinned ? 'お気に入り解除' : 'お気に入りに追加'}
                       >
-                        <Bookmark
-                          className="w-4 h-4"
-                          fill={currentPlan.pinnedSpots.includes(spot.id) ? 'currentColor' : 'none'}
-                        />
+                        <Bookmark className="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} />
                       </button>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2 leading-relaxed">{spot.description}</p>
+
+                    <p className="text-sm text-stone-600 mt-3 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {spot.description}
+                    </p>
                   </div>
 
-                  {/* Walk label */}
                   {!isLast && (
-                    <p className="text-xs text-gray-300 mt-3 ml-1">徒歩 5分</p>
+                    <p className="text-xs text-stone-400 mt-2.5 ml-1">
+                      次は、徒歩5分で…
+                    </p>
                   )}
                 </div>
               </div>
@@ -166,13 +190,13 @@ export function PlanScreen() {
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-5 pt-3 pb-6">
-        <div className="max-w-2xl mx-auto flex gap-3">
+      {/* Bottom bar */}
+      <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-stone-100 px-5 pt-3 pb-6 z-10">
+        <div className="max-w-lg mx-auto flex gap-3">
           <button
             onClick={handleNextPlan}
             disabled={isGeneratingNext}
-            className="flex-1 py-3.5 rounded-2xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3.5 rounded-full font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isGeneratingNext ? (
               <>
@@ -186,9 +210,10 @@ export function PlanScreen() {
               </>
             )}
           </button>
+
           <button
             onClick={() => setScreen('executing')}
-            className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 active:scale-[0.97] transition-all shadow-lg shadow-indigo-500/25"
+            className="flex-1 py-3.5 rounded-full font-bold text-white bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 transition-colors"
           >
             このプランで行く
           </button>
