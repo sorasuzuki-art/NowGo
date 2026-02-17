@@ -1,6 +1,35 @@
 import { create } from 'zustand';
 
-export interface Spot {
+export interface DbSpot {
+  source_id: string;
+  name: string | null;
+  detail: string | null;
+  source: string | null;
+  category: string | null;
+  cuisine: string | null;
+  lat: string | null;
+  lon: string | null;
+  address: string | null;
+  website: string | null;
+  isActive: boolean | null;
+  starttime: string | null;
+  closetime: string | null;
+  is_open_24h: boolean | null;
+  indoor_type: string | null;
+  weather_ok: string | null;
+  famousLevel: number | null;
+  stay_type: string | null;
+  estimated_stay_min: number | null;
+  tags: string | null;
+  price_level: string | null;
+  popularity_hint: string | null;
+  created_at: string;
+  updated_at: string | null;
+  last_verified_at: string | null;
+  isInbound: boolean | null;
+}
+
+export interface PlanSpot {
   id: string;
   name: string;
   category: string;
@@ -12,7 +41,7 @@ export interface Spot {
 }
 
 export interface Plan {
-  spots: Spot[];
+  spots: PlanSpot[];
   startTime: string;
   totalDuration: number;
   pinnedSpots: string[];
