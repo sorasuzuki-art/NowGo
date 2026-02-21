@@ -1,26 +1,47 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import {
   ArrowLeft,
-  Clock,
   Bookmark,
   Loader2,
   RefreshCw,
-  MapPin,
-  Sparkles,
   Footprints,
 } from 'lucide-react';
 
+const PlanMap = dynamic(
+  () => import('@/components/plan/PlanMap').then((mod) => mod.PlanMap),
+  { ssr: false },
+);
+
+const CATEGORY_TEXT: Record<string, string> = {
+  'カフェ':   'text-amber-600',
+  '美術館':   'text-violet-600',
+  '庭園':     'text-green-600',
+  '雑貨':     'text-pink-600',
+  'ショップ': 'text-orange-600',
+  '水族館':   'text-cyan-600',
+  '動物園':   'text-lime-600',
+};
+
+const CONNECTOR_TEXTS = [
+  'てくてく歩いて…',
+  'ぶらぶら移動して…',
+  'お散歩しながら…',
+  'すぐ近く！',
+  'ちょっと歩くと…',
+];
+
 export function PlanScreen() {
-  const { currentPlan, setScreen, togglePinSpot } = useNowgoStore();
+  const { currentPlan, setScreen, togglePinSpot, startLocation } = useNowgoStore();
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
 
   if (!currentPlan) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <p className="text-stone-400 text-sm">プランが見つかりません</p>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="text-gray-400 text-sm">プランが見つかりません</p>
       </div>
     );
   }
@@ -33,29 +54,173 @@ export function PlanScreen() {
 
   const pinnedCount = currentPlan.pinnedSpots.length;
 
+  const heroMessage = useMemo(() => {
+    const messages = [
+      { emoji: '🎯', text: '今日はこれでいこ' },
+      { emoji: '✨', text: 'いい感じのプラン' },
+      { emoji: '🚀', text: '準備はOK？' },
+      { emoji: '👟', text: 'さあ出発！' },
+      { emoji: '🌈', text: 'いい一日になりそう' },
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }, []);
+
+  const connectorTexts = useMemo(() => {
+    return currentPlan.spots.map(() =>
+      CONNECTOR_TEXTS[Math.floor(Math.random() * CONNECTOR_TEXTS.length)]
+    );
+  }, [currentPlan.spots]);
+
   const durationLabel = useMemo(() => {
     const totalHours = Math.floor(currentPlan.totalDuration / 60);
     const totalMinutes = currentPlan.totalDuration % 60;
-    if (totalHours <= 0) return `${totalMinutes}分のおでかけ`;
-    return totalMinutes > 0 ? `${totalHours}時間${totalMinutes}分のおでかけ` : `${totalHours}時間のおでかけ`;
+    if (totalHours <= 0) return `${totalMinutes}分`;
+    return totalMinutes > 0 ? `${totalHours}時間${totalMinutes}分` : `${totalHours}時間`;
   }, [currentPlan.totalDuration]);
 
+  // ── スポット一覧 ──
+  const spotList = (
+    <div className="space-y-3">
+      {currentPlan.spots.map((spot, index) => {
+        const isPinned = currentPlan.pinnedSpots.includes(spot.id);
+        const isFirst = index === 0;
+        const isLast = index === currentPlan.spots.length - 1;
+        const catText = CATEGORY_TEXT[spot.category] ?? 'text-blue-600';
+
+        return (
+          <div key={spot.id}>
+            <div className="bg-white rounded-3xl p-6 shadow-md">
+              <div className="flex items-start justify-between">
+                <span className={`font-extralight leading-none tabular-nums select-none text-gray-300 ${
+                  isFirst ? 'text-5xl' : 'text-4xl'
+                }`}>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400 tabular-nums">{spot.time}</span>
+                  <button
+                    onClick={() => togglePinSpot(spot.id)}
+                    className={`p-1.5 rounded-xl transition-all ${
+                      isPinned ? 'text-blue-600' : 'text-gray-300 hover:text-gray-400'
+                    }`}
+                    aria-label={isPinned ? 'お気に入り解除' : 'お気に入りに追加'}
+                  >
+                    <Bookmark className="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
+              </div>
+
+              <h3 className={`font-bold text-gray-900 leading-snug ${
+                isFirst ? 'text-xl mt-4' : 'text-lg mt-3'
+              }`}>
+                {spot.name}
+              </h3>
+              {isFirst && <div className="w-10 h-[3px] bg-blue-600 mt-2.5 rounded-full" />}
+
+              <p className={`text-xs ${isFirst ? 'mt-3' : 'mt-2'}`}>
+                <span className={`${catText} font-semibold inline-flex items-center gap-1`}>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'currentColor' }} />
+                  {spot.category}
+                </span>
+                <span className="text-gray-400"> · {spot.duration}分</span>
+              </p>
+
+              {spot.description && (
+                <p
+                  className="text-sm text-gray-500 mt-2.5 leading-relaxed overflow-hidden"
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {spot.description}
+                </p>
+              )}
+            </div>
+
+            {/* Connector */}
+            {!isLast && (
+              <div className="flex flex-col items-center py-1.5 text-gray-300">
+                <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
+                <div className="flex items-center gap-1.5 my-0.5 text-[11px]">
+                  <Footprints className="w-3 h-3" />
+                  <span>{connectorTexts[index]}</span>
+                </div>
+                <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── サイドバー ──
+  const sidebar = (
+    <div className="sticky top-20 space-y-6">
+      <div className="bg-white rounded-3xl p-6 shadow-sm">
+        <p className="text-xs font-medium text-gray-400 tracking-wider">スタート</p>
+        <h2 className="text-5xl font-extrabold text-gray-900 mt-2 tracking-tight">
+          {currentPlan.startTime}
+        </h2>
+        <p className="text-sm text-gray-400 mt-3">
+          {durationLabel} · {currentPlan.spots.length}スポット · 徒歩
+        </p>
+        <div className="mt-4">
+          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-semibold">
+            {heroMessage.emoji} {heroMessage.text}
+          </span>
+        </div>
+      </div>
+
+      <PlanMap spots={currentPlan.spots} currentLocation={startLocation.lat && startLocation.lng ? { lat: startLocation.lat, lng: startLocation.lng } : null} className="h-[350px]" />
+
+      <div className="space-y-2">
+        <button
+          onClick={() => setScreen('executing')}
+          className="w-full py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
+        >
+          このプランで行く
+        </button>
+        <button
+          onClick={handleNextPlan}
+          disabled={isGeneratingNext}
+          className="w-full py-3.5 rounded-2xl font-semibold text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ring-1 ring-gray-100"
+        >
+          {isGeneratingNext ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              作成中...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4" />
+              再作成
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-stone-100 px-5 py-3">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-5 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <button
             onClick={() => setScreen('dashboard')}
-            className="p-1.5 -ml-1.5 rounded-full hover:bg-stone-100 active:bg-stone-200 transition-colors"
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-stone-800" />
+            <ArrowLeft className="w-5 h-5 text-gray-800" />
           </button>
-          <span className="text-sm font-semibold text-stone-800">プラン</span>
+          <span className="text-sm font-semibold text-gray-800">プラン</span>
           {pinnedCount > 0 ? (
-            <div className="flex items-center gap-1">
-              <Bookmark className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500" />
-              <span className="text-sm font-medium text-indigo-500 tabular-nums">{pinnedCount}</span>
+            <div className="flex items-center gap-1 text-blue-600">
+              <Bookmark className="w-3.5 h-3.5 fill-current" />
+              <span className="text-sm font-medium tabular-nums">{pinnedCount}</span>
             </div>
           ) : (
             <div className="w-8" />
@@ -63,140 +228,43 @@ export function PlanScreen() {
         </div>
       </div>
 
-      {/* Hero */}
-      <div className="px-5 pt-6 pb-4">
-        <div className="max-w-lg mx-auto rounded-[28px] overflow-hidden bg-gradient-to-br from-indigo-500 via-indigo-500 to-cyan-400 shadow-sm">
-          <div className="p-7">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-white/80">{durationLabel}</p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white ring-1 ring-white/20">
-                <Sparkles className="w-3.5 h-3.5" />
-                今日はこれでいこ
-              </span>
-            </div>
-
-            <h1 className="text-3xl font-bold text-white mt-2 tracking-tight">
-              {currentPlan.startTime} スタート
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-2.5 mt-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
-                <MapPin className="w-4 h-4" />
-                {currentPlan.spots.length}スポット
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
-                <Footprints className="w-4 h-4" />
-                徒歩中心
-              </span>
-              {pinnedCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-sm text-white/90 ring-1 ring-white/15">
-                  <Bookmark className="w-4 h-4" />
-                  お気に入り {pinnedCount}
-                </span>
-              )}
-            </div>
-
-            <p className="text-xs text-white/75 mt-4">
-              迷ったら、とりあえず1つ目へ。テンポ良く進むほど楽しい。
-            </p>
+      {/* Mobile hero */}
+      <div className="md:hidden bg-white border-b border-gray-100">
+        <div className="px-5 pt-6 pb-7">
+          <p className="text-xs font-medium text-gray-400 tracking-wider">スタート</p>
+          <h1 className="text-5xl font-extrabold text-gray-900 mt-3 tracking-tight">
+            {currentPlan.startTime}
+          </h1>
+          <p className="text-sm text-gray-400 mt-3">
+            {durationLabel} · {currentPlan.spots.length}スポット · 徒歩
+          </p>
+          <div className="mt-4">
+            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-sm font-semibold">
+              {heroMessage.emoji} {heroMessage.text}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="px-5 pb-36">
-        <div className="max-w-lg mx-auto">
-          {currentPlan.spots.map((spot, index) => {
-            const isLast = index === currentPlan.spots.length - 1;
-            const isPinned = currentPlan.pinnedSpots.includes(spot.id);
-            const isNow = index === 0;
-
-            return (
-              <div key={spot.id} className="flex gap-4">
-                {/* Left rail */}
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                      isNow ? 'bg-indigo-500 text-white' : 'bg-stone-200 text-stone-600'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                  {!isLast && <div className="w-px flex-1 bg-stone-200 my-1" />}
-                </div>
-
-                {/* Card */}
-                <div className={`flex-1 min-w-0 ${isLast ? 'pb-4' : 'pb-5'}`}>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-stone-400 mb-1.5 tabular-nums">{spot.time}</p>
-                    {isNow && (
-                      <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        NOW
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`bg-white rounded-3xl p-5 shadow-sm ring-1 transition-transform duration-200 active:scale-[0.99] ${
-                      isNow ? 'ring-indigo-100' : 'ring-stone-100'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-bold text-stone-900 truncate">{spot.name}</h3>
-                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-stone-500">
-                          <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5">
-                            {spot.category}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-stone-100 px-2 py-0.5">
-                            <Clock className="w-3 h-3" />
-                            {spot.duration}分
-                          </span>
-                          {isNow && (
-                            <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-600 px-2 py-0.5">
-                              まずここ
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => togglePinSpot(spot.id)}
-                        className={`p-2 rounded-2xl transition-colors flex-shrink-0 ${
-                          isPinned
-                            ? 'bg-indigo-50 text-indigo-600'
-                            : 'text-stone-300 hover:text-stone-400 hover:bg-stone-50'
-                        }`}
-                        aria-label={isPinned ? 'お気に入り解除' : 'お気に入りに追加'}
-                      >
-                        <Bookmark className="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} />
-                      </button>
-                    </div>
-
-                    <p className="text-sm text-stone-600 mt-3 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                      {spot.description}
-                    </p>
-                  </div>
-
-                  {!isLast && (
-                    <p className="text-xs text-stone-400 mt-2.5 ml-1">
-                      次は、徒歩5分で…
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* Main */}
+      <div className="max-w-6xl mx-auto px-5">
+        <div className="md:hidden pt-5 pb-36">
+          <PlanMap spots={currentPlan.spots} currentLocation={startLocation.lat && startLocation.lng ? { lat: startLocation.lat, lng: startLocation.lng } : null} className="h-[200px] mb-5" />
+          {spotList}
+        </div>
+        <div className="hidden md:grid md:grid-cols-[1fr_340px] gap-10 pt-8 pb-12">
+          <div>{spotList}</div>
+          <div>{sidebar}</div>
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-stone-100 px-5 pt-3 pb-6 z-10">
-        <div className="max-w-lg mx-auto flex gap-3">
+      {/* Mobile bottom bar */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 px-5 pt-3 pb-6 z-10">
+        <div className="flex gap-3">
           <button
             onClick={handleNextPlan}
             disabled={isGeneratingNext}
-            className="flex-1 py-3.5 rounded-full font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isGeneratingNext ? (
               <>
@@ -206,14 +274,13 @@ export function PlanScreen() {
             ) : (
               <>
                 <RefreshCw className="w-4 h-4" />
-                {pinnedCount > 0 ? '再作成' : '別のプラン'}
+                再作成
               </>
             )}
           </button>
-
           <button
             onClick={() => setScreen('executing')}
-            className="flex-1 py-3.5 rounded-full font-bold text-white bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 transition-colors"
+            className="flex-[1.2] py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
           >
             このプランで行く
           </button>

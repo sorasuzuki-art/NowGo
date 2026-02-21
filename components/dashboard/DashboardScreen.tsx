@@ -131,57 +131,53 @@ export function DashboardScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [isSearching, setIsSearching] = useState(false);
+
   const handleGo = async () => {
-    const { searchSpots } = await import('@/lib/searchLogic');
-    const [selectedHour] = selectedDateTime.split(':').map(Number);
+    setIsSearching(true);
+    try {
+      const { searchSpotsFromDB } = await import('@/lib/spotSearch');
+      const [selectedHour] = selectedDateTime.split(':').map(Number);
 
-    const timeInMinutes = selectedTime === '60分' ? 60 :
-                         selectedTime === '90分' ? 90 :
-                         selectedTime === '120分' ? 120 :
-                         selectedTime === '150分' ? 150 :
-                         selectedTime === '半日' ? 240 :
-                         selectedTime === '1日' ? 480 : 90;
+      const timeInMinutes = selectedTime === '60分' ? 60 :
+                           selectedTime === '90分' ? 90 :
+                           selectedTime === '120分' ? 120 :
+                           selectedTime === '150分' ? 150 :
+                           selectedTime === '半日' ? 240 :
+                           selectedTime === '1日' ? 480 : 90;
 
-    const searchParams = {
-      availableTime: timeInMinutes,
-      currentHour: selectedHour,
-      companion: '友達' as any,
-      mode: selectedMode as any,
-      weather: selectedWeather as any,
-      style: selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ' | undefined,
-      locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
-      origin: startLocation.lat != null && startLocation.lng != null
-        ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
-      walkRangeMinutes,
-    };
+      const spots = await searchSpotsFromDB({
+        availableTime: timeInMinutes,
+        currentHour: selectedHour,
+        weather: selectedWeather as any,
+        style: (selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ') || undefined,
+        locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
+        mode: selectedMode,
+        origin: startLocation.lat != null && startLocation.lng != null
+          ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
+        walkRangeMinutes,
+      }, 4);
 
-    const searchResults = searchSpots(searchParams);
-    const topSpots = searchResults.slice(0, 3);
+      if (spots.length === 0) {
+        alert('条件に合うスポットが見つかりませんでした');
+        return;
+      }
 
-    setPlan({
-      spots: topSpots.map((spot, index) => ({
-        id: spot.id,
-        name: spot.name,
-        category: spot.category === 'culture' ? '観光' :
-                 spot.category === 'nature' ? '公園' :
-                 spot.category === 'shopping' ? 'ショップ' :
-                 spot.category === 'food' ? 'カフェ' : 'その他',
-        description: spot.reason.length > 0 ? spot.reason.join('、') : spot.description.slice(0, 50) + '...',
-        time: (() => {
-          const startTime = new Date();
-          startTime.setHours(14, 0, 0, 0);
-          startTime.setMinutes(startTime.getMinutes() + index * 75);
-          return startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-        })(),
-        duration: Math.floor(180 / topSpots.length),
-        lat: spot.coordinates.latitude,
-        lng: spot.coordinates.longitude,
-      })),
-      startTime: '14:00',
-      totalDuration: 180,
-      pinnedSpots: [],
-    });
-    setScreen('plan');
+      const totalDuration = spots.reduce((sum, s) => sum + s.duration, 0);
+
+      setPlan({
+        spots,
+        startTime: spots[0]?.time ?? '14:00',
+        totalDuration,
+        pinnedSpots: [],
+      });
+      setScreen('plan');
+    } catch (err) {
+      console.error('Plan generation failed:', err);
+      alert('プラン作成中にエラーが発生しました');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -424,9 +420,10 @@ export function DashboardScreen() {
             <div className="p-5 pt-0">
               <button
                 onClick={handleGo}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-lg font-bold rounded-2xl transition-all duration-200 shadow-lg shadow-blue-600/25"
+                disabled={isSearching}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-lg font-bold rounded-2xl transition-all duration-200 shadow-lg shadow-blue-600/25 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Go
+                {isSearching ? 'プラン作成中...' : 'Go'}
               </button>
             </div>
 

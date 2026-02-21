@@ -9,7 +9,16 @@
       "Bash(cp:*)",
       "Bash(grep:*)",
       "Bash(rm:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:sankoudesign.com)",
+      "WebFetch(domain:mobbin.com)",
+      "WebFetch(domain:www.qantas.com)",
+      "WebFetch(domain:apps.apple.com)",
+      "WebFetch(domain:www.adhamdannaway.com)",
+      "WebFetch(domain:dribbble.com)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
