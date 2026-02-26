@@ -155,6 +155,13 @@ export function ThemesScreen() {
       startTime: '14:00',
       totalDuration: 180,
       pinnedSpots: [],
+      searchParams: {
+        availableTime: 180,
+        currentHour: now.getHours(),
+        weather: weather as any,
+        style: companion === 'ひとり' ? 'ゆっくり' : companion === 'デート' ? 'ほどほど' : 'アクティブ',
+        mode: mode === 'おまかせ' ? '定番' : mode,
+      },
     });
     setScreen('plan');
   };

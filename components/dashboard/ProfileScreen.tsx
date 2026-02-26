@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import {
@@ -8,92 +8,92 @@ import {
   User,
   LogOut,
   ChevronRight,
-  Star,
-  Edit3,
+  Heart,
+  MapPin,
+  Clock,
+  Settings,
+  HelpCircle,
+  Shield,
 } from 'lucide-react';
+import { getFavoriteSpotCount, getVisitedSpotCount, getPlanHistoryCount } from '@/lib/storage';
 
-const SAMPLE_FAVORITE_SPOTS = [
-  {
-    id: '1',
-    name: 'スターバックス 渋谷スカイ店',
-    category: 'カフェ',
-    rating: 5,
-    image: 'https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    id: '2',
-    name: '代々木公園',
-    category: '公園',
-    rating: 5,
-    image: 'https://images.pexels.com/photos/1462935/pexels-photo-1462935.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    id: '3',
-    name: '明治神宮',
-    category: '観光',
-    rating: 4,
-    image: 'https://images.pexels.com/photos/2613260/pexels-photo-2613260.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-];
-
-const SAMPLE_FAVORITE_PLANS = [
-  {
-    id: '1',
-    name: '渋谷カフェ巡りプラン',
-    description: 'おしゃれなカフェを3軒巡る2時間コース',
-    spots: 3,
-    duration: '2時間',
-  },
-  {
-    id: '2',
-    name: '自然散策プラン',
-    description: '代々木公園〜明治神宮を散歩するリフレッシュコース',
-    spots: 2,
-    duration: '3時間',
-  },
-];
-
-const getCategoryColor = (category: string) => {
-  const colors: Record<string, { bg: string; text: string }> = {
-    '観光': { bg: 'bg-blue-50', text: 'text-blue-700' },
-    '公園': { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-    'ショップ': { bg: 'bg-violet-50', text: 'text-violet-700' },
-    'カフェ': { bg: 'bg-amber-50', text: 'text-amber-700' },
-  };
-  return colors[category] || { bg: 'bg-gray-100', text: 'text-gray-700' };
-};
+const GENDER_OPTIONS = ['男', '女', 'その他'] as const;
 
 export function ProfileScreen() {
-  const { profile, signOut, user, isGuest } = useAuth();
+  const { profile, signOut, user, isGuest, updateProfile } = useAuth();
   const { setScreen } = useNowgoStore();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState(profile?.nickname || '');
+  const [saving, setSaving] = useState(false);
+  const [favCount, setFavCount] = useState(0);
+  const [visitedCount, setVisitedCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(0);
+
+  // 設定画面
+  const [showSettings, setShowSettings] = useState(false);
+  const [editGender, setEditGender] = useState(profile?.gender || '');
+  const [editBirthDate, setEditBirthDate] = useState(profile?.birth_date || '');
+  const [editNickname, setEditNickname] = useState(profile?.nickname || '');
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    if (isGuest) return;
+    getFavoriteSpotCount().then(setFavCount);
+    getVisitedSpotCount().then(setVisitedCount);
+    getPlanHistoryCount().then(setHistoryCount);
+  }, [isGuest]);
 
   const handleSignOut = async () => {
     await signOut();
     setScreen('auth');
   };
 
-  const userInfo = {
-    nickname: profile?.nickname || 'ユーザー',
-    email: user?.email || 'user@example.com',
-    age: profile?.age || 25,
+  const handleSaveNickname = async () => {
+    if (!nicknameInput.trim()) return;
+    setSaving(true);
+    try {
+      await updateProfile({ nickname: nicknameInput.trim() });
+      setIsEditingNickname(false);
+    } catch {
+      // エラー時は何もしない
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleOpenSettings = () => {
+    setEditNickname(profile?.nickname || '');
+    setEditGender(profile?.gender || '');
+    setEditBirthDate(profile?.birth_date || '');
+    setShowSettings(true);
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await updateProfile({
+        nickname: editNickname.trim() || undefined,
+        gender: editGender || undefined,
+        birth_date: editBirthDate || undefined,
+      });
+      setShowSettings(false);
+    } catch {
+      // エラー時は何もしない
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const nickname = profile?.nickname || 'ユーザー';
+  const email = user?.email || '';
+  const initial = nickname.charAt(0);
 
   // ── ゲスト表示 ──
   if (isGuest) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <style>{`
-          @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.92); }
-            to { opacity: 1; transform: scale(1); }
-          }
-        `}</style>
-        <div
-          className="bg-gray-50 rounded-3xl p-8 max-w-md w-full text-center"
-          style={{ animation: 'scaleIn 0.4s ease-out both' }}
-        >
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-sm">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-gray-300" />
           </div>
@@ -104,7 +104,7 @@ export function ProfileScreen() {
           <div className="space-y-3">
             <button
               onClick={() => setScreen('auth')}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-2xl font-bold active:scale-[0.97] transition-all shadow-lg shadow-indigo-500/25"
+              className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-bold active:scale-[0.97] transition-all"
             >
               会員登録・ログイン
             </button>
@@ -120,178 +120,210 @@ export function ProfileScreen() {
     );
   }
 
+  // ── 設定画面 ──
+  if (showSettings) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-gray-100">
+          <div className="max-w-2xl mx-auto flex items-center h-12 px-5">
+            <button
+              onClick={() => setShowSettings(false)}
+              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-900" />
+            </button>
+            <span className="ml-2 text-base font-semibold text-gray-900">設定</span>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-5 pt-6 space-y-5">
+          {/* ニックネーム */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-500 mb-2">ニックネーム</label>
+            <input
+              type="text"
+              value={editNickname}
+              onChange={(e) => setEditNickname(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 outline-none transition-all text-gray-900"
+              maxLength={20}
+            />
+          </div>
+
+          {/* 性別 */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-500 mb-2">性別</label>
+            <div className="flex gap-2">
+              {GENDER_OPTIONS.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setEditGender(g)}
+                  className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                    editGender === g
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 生年月日 */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-500 mb-2">生年月日</label>
+            <input
+              type="date"
+              value={editBirthDate}
+              onChange={(e) => setEditBirthDate(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 outline-none transition-all text-gray-900"
+            />
+          </div>
+
+          {/* メールアドレス（読み取り専用） */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <label className="block text-sm font-medium text-gray-500 mb-2">メールアドレス</label>
+            <p className="px-4 py-3 text-gray-400 text-sm">{email}</p>
+          </div>
+
+          {/* 保存ボタン */}
+          <button
+            onClick={handleSaveSettings}
+            disabled={savingSettings}
+            className="w-full py-4 bg-gray-900 text-white font-bold rounded-2xl active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {savingSettings ? '保存中...' : '保存する'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const menuSections = [
+    {
+      items: [
+        { icon: Heart, label: 'お気に入りスポット', color: 'text-pink-500', count: favCount },
+        { icon: MapPin, label: '行ったスポット', color: 'text-emerald-500', count: visitedCount },
+        { icon: Clock, label: 'プラン履歴', color: 'text-violet-500', count: historyCount },
+      ],
+    },
+    {
+      items: [
+        { icon: Settings, label: '設定', color: 'text-gray-400', action: handleOpenSettings },
+        { icon: HelpCircle, label: 'ヘルプ', color: 'text-gray-400' },
+        { icon: Shield, label: 'プライバシーポリシー', color: 'text-gray-400' },
+      ],
+    },
+  ];
+
   // ── メイン表示 ──
   return (
-    <div className="min-h-screen bg-white">
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.92); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
-
+    <div className="min-h-screen bg-gray-50">
       {/* ── Top bar ── */}
-      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl px-5 pt-4 pb-2">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-gray-100">
+        <div className="max-w-2xl mx-auto flex items-center h-12 px-5">
           <button
             onClick={() => setScreen('dashboard')}
             className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all"
           >
             <ArrowLeft className="w-5 h-5 text-gray-900" />
           </button>
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all"
-          >
-            <Edit3 className="w-4 h-4 text-gray-400" />
-          </button>
+          <span className="ml-2 text-base font-semibold text-gray-900">プロフィール</span>
         </div>
       </div>
 
-      {/* ── Profile hero ── */}
-      <div
-        className="px-5 pt-6 pb-8"
-        style={{ animation: 'scaleIn 0.4s ease-out both' }}
-      >
-        <div className="max-w-2xl mx-auto text-center">
-          {/* Avatar with gradient ring */}
-          <div className="w-[88px] h-[88px] rounded-full bg-gradient-to-br from-blue-400 via-violet-400 to-pink-400 p-[3px] mx-auto mb-4">
-            <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-              <User className="w-10 h-10 text-gray-300" />
+      {/* ── Profile card ── */}
+      <div className="max-w-2xl mx-auto px-5 pt-6">
+        <div className="bg-white rounded-3xl p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            {/* Avatar */}
+            <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xl font-bold">{initial}</span>
             </div>
-          </div>
-          <h1 className="text-xl font-bold text-gray-900">{userInfo.nickname}</h1>
-          <p className="text-gray-400 text-sm mt-1">{userInfo.email}</p>
 
-          {/* Stats cards */}
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <div className="bg-blue-50 rounded-2xl py-3 px-2">
-              <p className="text-2xl font-bold text-blue-600">{SAMPLE_FAVORITE_SPOTS.length}</p>
-              <p className="text-[11px] text-blue-400 mt-0.5">スポット</p>
-            </div>
-            <div className="bg-emerald-50 rounded-2xl py-3 px-2">
-              <p className="text-2xl font-bold text-emerald-600">{SAMPLE_FAVORITE_PLANS.length}</p>
-              <p className="text-[11px] text-emerald-400 mt-0.5">プラン</p>
-            </div>
-            <div className="bg-amber-50 rounded-2xl py-3 px-2">
-              <p className="text-2xl font-bold text-amber-600">{userInfo.age}</p>
-              <p className="text-[11px] text-amber-400 mt-0.5">歳</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Content ── */}
-      <div className="max-w-2xl mx-auto px-5">
-
-        {/* お気に入りスポット */}
-        <div
-          className="mb-10"
-          style={{ animation: 'fadeInUp 0.5s ease-out 200ms both' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900">お気に入りスポット</h2>
-            <button className="text-sm text-gray-400 hover:text-gray-600 active:scale-95 transition-all">
-              すべて見る
-            </button>
-          </div>
-          <div
-            className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory"
-            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-          >
-            {SAMPLE_FAVORITE_SPOTS.map((spot, i) => {
-              const catColor = getCategoryColor(spot.category);
-              return (
-                <div
-                  key={spot.id}
-                  className="flex-shrink-0 w-40 snap-start group cursor-pointer active:scale-[0.97] transition-transform"
-                  style={{ animation: `fadeInUp 0.4s ease-out ${i * 80 + 300}ms both` }}
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              {isEditingNickname ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={nicknameInput}
+                    onChange={(e) => setNicknameInput(e.target.value)}
+                    className="flex-1 text-lg font-bold text-gray-900 bg-gray-50 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-gray-900 min-w-0"
+                    autoFocus
+                    maxLength={20}
+                  />
+                  <button
+                    onClick={handleSaveNickname}
+                    disabled={saving}
+                    className="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-xl active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {saving ? '...' : '保存'}
+                  </button>
+                  <button
+                    onClick={() => { setIsEditingNickname(false); setNicknameInput(nickname); }}
+                    className="px-2 py-1.5 text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setIsEditingNickname(true); setNicknameInput(nickname); }}
+                  className="group text-left"
                 >
-                  <div className="relative overflow-hidden rounded-2xl">
-                    <img
-                      src={spot.image}
-                      alt={spot.name}
-                      className="w-40 h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
-                      <div className="flex items-center gap-0.5">
-                        {[...Array(spot.rating)].map((_, j) => (
-                          <Star key={j} className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="absolute top-2 left-2">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${catColor.bg} ${catColor.text} backdrop-blur-sm`}>
-                        {spot.category}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-gray-900 truncate">{spot.name}</p>
-                </div>
-              );
-            })}
+                  <h1 className="text-lg font-bold text-gray-900 group-hover:text-gray-600 transition-colors">
+                    {nickname}
+                    <span className="ml-1.5 text-xs text-gray-300 group-hover:text-gray-400">編集</span>
+                  </h1>
+                </button>
+              )}
+              {email && (
+                <p className="text-sm text-gray-400 mt-0.5 truncate">{email}</p>
+              )}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* お気に入りプラン */}
-        <div
-          className="mb-10"
-          style={{ animation: 'fadeInUp 0.5s ease-out 400ms both' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900">お気に入りプラン</h2>
-            <button className="text-sm text-gray-400 hover:text-gray-600 active:scale-95 transition-all">
-              すべて見る
-            </button>
-          </div>
-          <div className="space-y-3">
-            {SAMPLE_FAVORITE_PLANS.map((plan, i) => (
-              <div
-                key={plan.id}
-                className="p-4 bg-gray-50 rounded-2xl hover:bg-gray-100/80 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-4"
-                style={{ animation: `fadeInUp 0.4s ease-out ${i * 80 + 500}ms both` }}
+      {/* ── Menu sections ── */}
+      <div className="max-w-2xl mx-auto px-5 pt-5 space-y-4">
+        {menuSections.map((section, si) => (
+          <div key={si} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {section.items.map((item, ii) => (
+              <button
+                key={ii}
+                onClick={'action' in item ? (item as any).action : undefined}
+                className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
               >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 truncate">{plan.name}</h3>
-                  <p className="text-sm text-gray-400 mt-0.5 truncate">{plan.description}</p>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
-                      {plan.spots} スポット
-                    </span>
-                    <span className="text-[11px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                      {plan.duration}
-                    </span>
-                  </div>
-                </div>
+                <item.icon className={`w-5 h-5 ${item.color} flex-shrink-0`} />
+                <span className="flex-1 text-[15px] text-gray-900">{item.label}</span>
+                {'count' in item && (
+                  <span className="text-sm text-gray-300 tabular-nums">{(item as any).count}</span>
+                )}
                 <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-              </div>
+              </button>
             ))}
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* ログアウト */}
-        <div className="pb-12">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-400 hover:text-red-500 active:scale-[0.97] transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>ログアウト</span>
-          </button>
-        </div>
+      {/* ── Logout ── */}
+      <div className="max-w-2xl mx-auto px-5 pt-8 pb-12">
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-400 hover:text-red-500 active:scale-[0.97] transition-all"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>ログアウト</span>
+        </button>
       </div>
 
       {/* ── ログアウト確認 ── */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 z-50">
-          <div
-            className="bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 w-full sm:max-w-sm shadow-2xl"
-            style={{ animation: 'fadeInUp 0.3s ease-out both' }}
-          >
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 w-full sm:max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-gray-900 mb-2">ログアウトしますか？</h3>
             <p className="text-sm text-gray-500 mb-6">いつでもまた戻ってきてください。</p>
             <div className="flex gap-3">

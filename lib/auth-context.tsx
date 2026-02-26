@@ -10,7 +10,7 @@ type AuthContextType = {
   loading: boolean;
   isGuest: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, nickname: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, nickname: string, options?: { gender?: string; birthDate?: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   signInAsGuest: () => void;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -76,25 +76,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, nickname: string) => {
+  const signUp = async (email: string, password: string, nickname: string, opts?: { gender?: string; birthDate?: string }) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            nickname,
+            gender: opts?.gender || null,
+            birth_date: opts?.birthDate || null,
+          },
+        },
       });
 
       if (error) return { error };
       if (!data.user) return { error: new Error('User creation failed') };
 
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: data.user.id,
-          nickname,
-        });
-
-      if (profileError) return { error: profileError };
-
+      // user_profilesはDBトリガー(handle_new_user)で自動作成される
       return { error: null };
     } catch (error) {
       return { error: error as Error };

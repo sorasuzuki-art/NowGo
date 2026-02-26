@@ -186,3 +186,118 @@ function saveLastConditionsToLocalStorage(conditions: LastConditions) {
     console.error('Failed to save last conditions to localStorage:', error);
   }
 }
+
+// ── Favorite Spots ──
+
+export const toggleFavoriteSpot = async (spotSourceId: string): Promise<void> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+
+  try {
+    const { data: existing } = await supabase
+      .from('favorite_spots')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('spot_source_id', spotSourceId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('favorite_spots')
+        .delete()
+        .eq('user_id', userId)
+        .eq('spot_source_id', spotSourceId);
+    } else {
+      await supabase
+        .from('favorite_spots')
+        .insert({ user_id: userId, spot_source_id: spotSourceId });
+    }
+  } catch (error) {
+    console.error('Failed to toggle favorite spot:', error);
+  }
+};
+
+export const getFavoriteSpotCount = async (): Promise<number> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return 0;
+
+  const { count, error } = await supabase
+    .from('favorite_spots')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) return 0;
+  return count ?? 0;
+};
+
+// ── Visited Spots ──
+
+export const markSpotsVisited = async (spotSourceIds: string[]): Promise<void> => {
+  const userId = await getCurrentUserId();
+  if (!userId || spotSourceIds.length === 0) return;
+
+  try {
+    const rows = spotSourceIds.map((id) => ({
+      user_id: userId,
+      spot_source_id: id,
+    }));
+
+    await supabase
+      .from('visited_spots')
+      .upsert(rows, { onConflict: 'user_id,spot_source_id', ignoreDuplicates: true });
+  } catch (error) {
+    console.error('Failed to mark spots as visited:', error);
+  }
+};
+
+export const getVisitedSpotCount = async (): Promise<number> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return 0;
+
+  const { count, error } = await supabase
+    .from('visited_spots')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) return 0;
+  return count ?? 0;
+};
+
+// ── Plan History ──
+
+export const savePlanHistory = async (plan: {
+  spots: any[];
+  startTime: string;
+  totalDuration: number;
+  startLocationLabel?: string;
+}): Promise<void> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+
+  try {
+    await supabase
+      .from('plan_history')
+      .insert({
+        user_id: userId,
+        spots: plan.spots,
+        start_time: plan.startTime,
+        total_duration: plan.totalDuration,
+        start_location_label: plan.startLocationLabel || null,
+      });
+  } catch (error) {
+    console.error('Failed to save plan history:', error);
+  }
+};
+
+export const getPlanHistoryCount = async (): Promise<number> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return 0;
+
+  const { count, error } = await supabase
+    .from('plan_history')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) return 0;
+  return count ?? 0;
+};

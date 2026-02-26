@@ -10,6 +10,8 @@ import {
   RefreshCw,
   Footprints,
 } from 'lucide-react';
+import { toggleFavoriteSpot } from '@/lib/storage';
+import { useAuth } from '@/lib/auth-context';
 
 const PlanMap = dynamic(
   () => import('@/components/plan/PlanMap').then((mod) => mod.PlanMap),
@@ -35,7 +37,8 @@ const CONNECTOR_TEXTS = [
 ];
 
 export function PlanScreen() {
-  const { currentPlan, setScreen, togglePinSpot, startLocation } = useNowgoStore();
+  const { currentPlan, setScreen, togglePinSpot, startLocation, walkRangeMinutes, setPlan } = useNowgoStore();
+  const { user, isGuest } = useAuth();
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
 
   if (!currentPlan) {
@@ -48,8 +51,39 @@ export function PlanScreen() {
 
   const handleNextPlan = async () => {
     setIsGeneratingNext(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsGeneratingNext(false);
+    try {
+      const { searchSpotsFromDB } = await import('@/lib/spotSearch');
+
+      const excludeIds = currentPlan.spots.map(s => s.id);
+      const spots = await searchSpotsFromDB({
+        ...currentPlan.searchParams,
+        origin: startLocation.lat != null && startLocation.lng != null
+          ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
+        walkRangeMinutes,
+        userId: !isGuest && user ? user.id : undefined,
+        excludeSpotIds: excludeIds,
+      }, 4);
+
+      if (spots.length === 0) {
+        alert('条件に合うスポットが見つかりませんでした');
+        return;
+      }
+
+      const totalDuration = spots.reduce((sum, s) => sum + s.duration, 0);
+
+      setPlan({
+        spots,
+        startTime: spots[0]?.time ?? currentPlan.startTime,
+        totalDuration,
+        pinnedSpots: [],
+        searchParams: currentPlan.searchParams,
+      });
+    } catch (err) {
+      console.error('Plan regeneration failed:', err);
+      alert('プラン再作成中にエラーが発生しました');
+    } finally {
+      setIsGeneratingNext(false);
+    }
   };
 
   const pinnedCount = currentPlan.pinnedSpots.length;
@@ -99,7 +133,7 @@ export function PlanScreen() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-400 tabular-nums">{spot.time}</span>
                   <button
-                    onClick={() => togglePinSpot(spot.id)}
+                    onClick={() => { togglePinSpot(spot.id); toggleFavoriteSpot(spot.id); }}
                     className={`p-1.5 rounded-xl transition-all ${
                       isPinned ? 'text-blue-600' : 'text-gray-300 hover:text-gray-400'
                     }`}

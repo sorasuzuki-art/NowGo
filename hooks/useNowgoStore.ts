@@ -40,11 +40,21 @@ export interface PlanSpot {
   lng: number;
 }
 
+export interface SearchParams {
+  availableTime: number;
+  currentHour: number;
+  weather: '晴れ' | '曇り' | '雨' | '雪' | '風強め';
+  style?: 'ゆっくり' | 'ほどほど' | 'アクティブ';
+  locationType?: '屋内' | '屋外';
+  mode: string;
+}
+
 export interface Plan {
   spots: PlanSpot[];
   startTime: string;
   totalDuration: number;
   pinnedSpots: string[];
+  searchParams: SearchParams;
 }
 
 export type StartLocationSource = 'gps' | 'manual';

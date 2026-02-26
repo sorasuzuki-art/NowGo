@@ -100,6 +100,13 @@ export function QuickPlanScreen() {
       startTime: '14:00',
       totalDuration: duration,
       pinnedSpots: [],
+      searchParams: {
+        availableTime: duration,
+        currentHour: now.getHours(),
+        weather: '晴れ',
+        style: groupSize === 1 ? 'ゆっくり' : groupSize === 2 ? 'ほどほど' : 'アクティブ',
+        mode: '定番',
+      },
     });
 
     setScreen('plan');

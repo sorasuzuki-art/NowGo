@@ -10,7 +10,7 @@ export type UserProfile = {
   nickname: string;
   email?: string;
   gender?: string;
-  age?: number;
+  birth_date?: string;
   age_group?: string;
   home_station?: string;
   avatar_url?: string;
