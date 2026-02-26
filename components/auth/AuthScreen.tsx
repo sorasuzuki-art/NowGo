@@ -9,6 +9,8 @@ export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
+  const [gender, setGender] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +29,10 @@ export function AuthScreen() {
         if (!nickname.trim()) {
           throw new Error('ニックネームを入力してください');
         }
-        const { error } = await signUp(email, password, nickname);
+        const { error } = await signUp(email, password, nickname, {
+          gender: gender || undefined,
+          birthDate: birthDate || undefined,
+        });
         if (error) throw error;
       }
     } catch (err: any) {
@@ -92,6 +97,44 @@ export function AuthScreen() {
                     placeholder="例: たろう"
                     required
                   />
+                </div>
+              )}
+
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    生年月日
+                  </label>
+                  <input
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-gray-900"
+                  />
+                </div>
+              )}
+
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    性別
+                  </label>
+                  <div className="flex gap-2">
+                    {['男', '女', 'その他'].map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGender(g)}
+                        className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                          gender === g
+                            ? 'bg-blue-500 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

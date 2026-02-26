@@ -170,6 +170,14 @@ export function DashboardScreen() {
         startTime: spots[0]?.time ?? '14:00',
         totalDuration,
         pinnedSpots: [],
+        searchParams: {
+          availableTime: timeInMinutes,
+          currentHour: selectedHour,
+          weather: selectedWeather as any,
+          style: (selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ') || undefined,
+          locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
+          mode: selectedMode,
+        },
       });
       setScreen('plan');
     } catch (err) {

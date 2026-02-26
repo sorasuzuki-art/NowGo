@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, ChevronDown, MapPin, Footprints, Bookmark } from 'lucide-react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
+import { markSpotsVisited, savePlanHistory } from '@/lib/storage';
 
 // PlanScreen と同じカテゴリ色（テキスト＋ドット用）
 const CATEGORY_TEXT: Record<string, string> = {
@@ -63,6 +64,18 @@ export function ExecutionScreen() {
   };
 
   const handleComplete = () => {
+    // 全スポットを訪問済みとして記録 + プラン履歴を保存（fire-and-forget）
+    const spotIds = currentPlan.spots.map((s) => s.id);
+    markSpotsVisited(spotIds);
+
+    const { startLocation } = useNowgoStore.getState();
+    savePlanHistory({
+      spots: currentPlan.spots,
+      startTime: currentPlan.startTime,
+      totalDuration: currentPlan.totalDuration,
+      startLocationLabel: startLocation.label || undefined,
+    });
+
     setShowExitDialog(false);
     setScreen('dashboard');
   };
