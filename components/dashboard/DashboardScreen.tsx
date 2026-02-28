@@ -137,7 +137,7 @@ export function DashboardScreen() {
     setIsSearching(true);
     try {
       const { searchSpotsFromDB } = await import('@/lib/spotSearch');
-      const [selectedHour] = selectedDateTime.split(':').map(Number);
+      const [selectedHour, selectedMinute] = selectedDateTime.split(':').map(Number);
 
       const timeInMinutes = selectedTime === '60分' ? 60 :
                            selectedTime === '90分' ? 90 :
@@ -149,6 +149,7 @@ export function DashboardScreen() {
       const spots = await searchSpotsFromDB({
         availableTime: timeInMinutes,
         currentHour: selectedHour,
+        currentMinute: selectedMinute ?? 0,
         weather: selectedWeather as any,
         style: (selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ') || undefined,
         locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
@@ -156,7 +157,7 @@ export function DashboardScreen() {
         origin: startLocation.lat != null && startLocation.lng != null
           ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
         walkRangeMinutes,
-      }, 4);
+      });
 
       if (spots.length === 0) {
         alert('条件に合うスポットが見つかりませんでした');
@@ -173,6 +174,7 @@ export function DashboardScreen() {
         searchParams: {
           availableTime: timeInMinutes,
           currentHour: selectedHour,
+          currentMinute: selectedMinute ?? 0,
           weather: selectedWeather as any,
           style: (selectedStyle as 'ゆっくり' | 'ほどほど' | 'アクティブ') || undefined,
           locationType: (selectedLocationType as '屋内' | '屋外') || undefined,
