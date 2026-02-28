@@ -43,6 +43,7 @@ export interface PlanSpot {
 export interface SearchParams {
   availableTime: number;
   currentHour: number;
+  currentMinute?: number;
   weather: '晴れ' | '曇り' | '雨' | '雪' | '風強め';
   style?: 'ゆっくり' | 'ほどほど' | 'アクティブ';
   locationType?: '屋内' | '屋外';

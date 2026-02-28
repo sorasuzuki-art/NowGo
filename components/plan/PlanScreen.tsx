@@ -40,6 +40,10 @@ export function PlanScreen() {
   const { currentPlan, setScreen, togglePinSpot, startLocation, walkRangeMinutes, setPlan } = useNowgoStore();
   const { user, isGuest } = useAuth();
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
+  const [shownSpotIds, setShownSpotIds] = useState<string[]>(() =>
+    // 初回表示時のスポットIDを記録
+    useNowgoStore.getState().currentPlan?.spots.map(s => s.id) ?? []
+  );
 
   if (!currentPlan) {
     return (
@@ -54,20 +58,24 @@ export function PlanScreen() {
     try {
       const { searchSpotsFromDB } = await import('@/lib/spotSearch');
 
-      const excludeIds = currentPlan.spots.map(s => s.id);
+      // 過去に表示した全スポットを除外
+      const allExcludeIds = [...shownSpotIds];
       const spots = await searchSpotsFromDB({
         ...currentPlan.searchParams,
         origin: startLocation.lat != null && startLocation.lng != null
           ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
         walkRangeMinutes,
         userId: !isGuest && user ? user.id : undefined,
-        excludeSpotIds: excludeIds,
-      }, 4);
+        excludeSpotIds: allExcludeIds,
+      });
 
       if (spots.length === 0) {
         alert('条件に合うスポットが見つかりませんでした');
         return;
       }
+
+      // 新しいスポットIDを蓄積
+      setShownSpotIds(prev => [...prev, ...spots.map(s => s.id)]);
 
       const totalDuration = spots.reduce((sum, s) => sum + s.duration, 0);
 
