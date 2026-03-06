@@ -23,6 +23,7 @@ export interface DbSpot {
   tags: string | null;
   price_level: string | null;
   popularity_hint: string | null;
+  scope: string | null;
   created_at: string;
   updated_at: string | null;
   last_verified_at: string | null;
@@ -106,7 +107,7 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   },
   duration: 120,
   groupSize: 2,
-  walkRangeMinutes: 10,
+  walkRangeMinutes: 20,
   currentPlan: null,
 
   setScreen: (screen) => set({ currentScreen: screen }),
@@ -140,7 +141,7 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
       },
       duration: 120,
       groupSize: 2,
-      walkRangeMinutes: 10,
+      walkRangeMinutes: 20,
       currentPlan: null,
     }),
 }));

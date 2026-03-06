@@ -14,8 +14,9 @@ import {
   Snowflake,
   SlidersHorizontal,
 } from 'lucide-react';
-import { StationSelectModal } from '../home/StationSelectModal';
 import { reverseGeocode } from '@/lib/geocoding';
+import { supabase } from '@/lib/supabase';
+import { addRecentStation } from '@/lib/storage';
 
 const TIME_OPTIONS = ['60分', '90分', '120分', '150分', '半日', '1日'];
 const MODE_OPTIONS = ['定番', '新規開拓', '冒険'];
@@ -132,16 +133,49 @@ export function DashboardScreen() {
   const { startLocation, setStartLocation, walkRangeMinutes, setWalkRangeMinutes, setScreen, setPlan } = useNowgoStore();
 
   const [selectedTime, setSelectedTime] = useState('90分');
-  const [selectedMode, setSelectedMode] = useState('定番');
+  const [selectedMode, setSelectedMode] = useState('新規開拓');
   const [selectedStyle, setSelectedStyle] = useState('ほどほど');
   const [selectedLocationType, setSelectedLocationType] = useState('');
   const [selectedDate, setSelectedDate] = useState(getCurrentDate());
   const [selectedDateTime, setSelectedDateTime] = useState(getCurrentTime());
   const [selectedWeather, setSelectedWeather] = useState(getCurrentWeather());
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  // 駅名インライン検索
+  const [stationQuery, setStationQuery] = useState('');
+  const [stationResults, setStationResults] = useState<{ id: string; name: string; line_name: string | null; lat: number; lng: number }[]>([]);
+  const [showStationDropdown, setShowStationDropdown] = useState(false);
+  const stationTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const searchStation = (q: string) => {
+    setStationQuery(q);
+    if (!q.trim()) {
+      setStationResults([]);
+      setShowStationDropdown(false);
+      return;
+    }
+    clearTimeout(stationTimer.current);
+    stationTimer.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('stations')
+        .select('id, name, line_name, lat, lng')
+        .or(`name.ilike.%${q}%,name_kana.ilike.%${q}%`)
+        .limit(8);
+      if (data) {
+        setStationResults(data.map(r => ({ ...r, lat: parseFloat(String(r.lat)), lng: parseFloat(String(r.lng)) })));
+        setShowStationDropdown(true);
+      }
+    }, 200);
+  };
+
+  const selectStation = async (station: typeof stationResults[0]) => {
+    setStartLocation({ label: station.name, lat: station.lat, lng: station.lng, source: 'manual', accuracy: null });
+    setStationQuery('');
+    setShowStationDropdown(false);
+    await addRecentStation(station.name);
+  };
 
   const selectedHour = parseInt(selectedDateTime.split(':')[0]);
   const selectedMinuteVal = parseInt(selectedDateTime.split(':')[1]);
@@ -305,7 +339,7 @@ export function DashboardScreen() {
         </header>
 
         {/* ── Main ── */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="flex-1 flex flex-col items-center px-4 pt-4 pb-8">
           <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight text-center mb-2">
             この後の予定？<span className="text-blue-300">Now</span>ろう
           </h2>
@@ -317,32 +351,55 @@ export function DashboardScreen() {
 
               {/* 場所 */}
               <div className="p-5 pb-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsStationModalOpen(true)}
-                  className="flex-1 flex items-center gap-3 px-4 py-3.5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors group min-w-0"
-                >
-                  <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {startLocation.label || (isGettingLocation ? '取得中...' : '場所を選択')}
-                    </p>
-                    {startLocation.source === 'gps' && startLocation.accuracy != null && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        GPS{startLocation.accuracy < 100 ? ' · 高精度' : ''}
-                      </p>
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-2xl">
+                    <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                    {startLocation.label && !stationQuery ? (
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 truncate">{startLocation.label}</span>
+                        <button
+                          onClick={() => { setStartLocation({ label: '', lat: null, lng: null, source: 'manual', accuracy: null }); }}
+                          className="text-gray-300 hover:text-gray-500 text-xs flex-shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={stationQuery}
+                        onChange={e => searchStation(e.target.value)}
+                        onFocus={() => { if (stationResults.length > 0) setShowStationDropdown(true); }}
+                        placeholder={isGettingLocation ? '取得中...' : '駅名を入力'}
+                        className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 outline-none min-w-0"
+                      />
                     )}
                   </div>
-                  <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0 group-hover:text-gray-400 transition-colors" />
-                </button>
-                <button
-                  onClick={getCurrentLocation}
-                  disabled={isGettingLocation}
-                  className="p-3.5 bg-gray-50 hover:bg-blue-50 rounded-2xl transition-colors disabled:opacity-40"
-                  title="現在地を取得"
-                >
-                  <Navigation className={`w-5 h-5 text-blue-500 ${isGettingLocation ? 'animate-pulse' : ''}`} />
-                </button>
+                  <button
+                    onClick={getCurrentLocation}
+                    disabled={isGettingLocation}
+                    className="p-3.5 bg-gray-50 hover:bg-blue-50 rounded-2xl transition-colors disabled:opacity-40"
+                    title="現在地を取得"
+                  >
+                    <Navigation className={`w-5 h-5 text-blue-500 ${isGettingLocation ? 'animate-pulse' : ''}`} />
+                  </button>
+                </div>
+                {/* 候補ドロップダウン */}
+                {showStationDropdown && stationResults.length > 0 && (
+                  <div className="absolute left-0 right-12 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-30 max-h-52 overflow-y-auto">
+                    {stationResults.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => selectStation(s)}
+                        className="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                      >
+                        <span className="text-sm font-medium text-gray-900">{s.name}</span>
+                        {s.line_name && <span className="text-xs text-gray-400 ml-2">{s.line_name}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {locationError && (
                 <p className="mt-2 text-xs text-red-400 px-1">{locationError}</p>
@@ -538,7 +595,6 @@ export function DashboardScreen() {
         </div>
       </div>
 
-      <StationSelectModal isOpen={isStationModalOpen} onClose={() => setIsStationModalOpen(false)} />
     </div>
   );
 }

@@ -78,15 +78,24 @@ export function PlanScreen() {
       // 過去に表示した全スポットを除外（ただしピン留めは除外しない）
       const allExcludeIds = shownSpotIds.filter(id => !pinnedIds.has(id));
 
-      const spots = await searchSpotsFromDB({
+      const searchArgs = {
         ...currentPlan.searchParams,
         origin: startLocation.lat != null && startLocation.lng != null
           ? { lat: startLocation.lat, lng: startLocation.lng } : undefined,
         walkRangeMinutes,
         userId: !isGuest && user ? user.id : undefined,
-        excludeSpotIds: allExcludeIds,
         pinnedSpots: pinnedSpotObjs.length > 0 ? pinnedSpotObjs : undefined,
-      });
+      };
+
+      let spots = await searchSpotsFromDB({ ...searchArgs, excludeSpotIds: allExcludeIds });
+
+      // 候補が枯渇したら除外リストをリセットして再検索
+      // （直前プランのスポットだけは除外して同じ結果を防ぐ）
+      if (spots.length === 0) {
+        const currentIds = currentPlan.spots.map(s => s.id).filter(id => !pinnedIds.has(id));
+        spots = await searchSpotsFromDB({ ...searchArgs, excludeSpotIds: currentIds });
+        if (spots.length > 0) setShownSpotIds(currentIds);
+      }
 
       if (spots.length === 0) {
         alert('条件に合うスポットが見つかりませんでした');
@@ -105,6 +114,7 @@ export function PlanScreen() {
         pinnedSpots: Array.from(pinnedIds), // ピン留め状態を維持
         searchParams: currentPlan.searchParams,
       });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Plan regeneration failed:', err);
       alert('プラン再作成中にエラーが発生しました');
@@ -264,7 +274,7 @@ export function PlanScreen() {
 
       <div className="space-y-2">
         <button
-          onClick={() => setScreen('executing')}
+          onClick={() => { setScreen('executing'); window.scrollTo({ top: 0 }); }}
           className="w-full py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
         >
           このプランで行く
@@ -364,7 +374,7 @@ export function PlanScreen() {
             )}
           </button>
           <button
-            onClick={() => setScreen('executing')}
+            onClick={() => { setScreen('executing'); window.scrollTo({ top: 0 }); }}
             className="flex-[1.2] py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
           >
             このプランで行く
