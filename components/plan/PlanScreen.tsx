@@ -9,6 +9,8 @@ import {
   Loader2,
   RefreshCw,
   Footprints,
+  ExternalLink,
+  Building2,
 } from 'lucide-react';
 import { toggleFavoriteSpot } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
@@ -19,13 +21,22 @@ const PlanMap = dynamic(
 );
 
 const CATEGORY_TEXT: Record<string, string> = {
-  'カフェ':   'text-amber-600',
-  '美術館':   'text-violet-600',
-  '庭園':     'text-green-600',
-  '雑貨':     'text-pink-600',
-  'ショップ': 'text-orange-600',
-  '水族館':   'text-cyan-600',
-  '動物園':   'text-lime-600',
+  'カフェ':       'text-amber-600',
+  'バー':         'text-amber-700',
+  'ファッション': 'text-rose-600',
+  '雑貨':         'text-pink-600',
+  'ショッピング': 'text-orange-600',
+  'ミュージアム': 'text-violet-600',
+  'ギャラリー':   'text-purple-600',
+  '自然':         'text-green-600',
+  'エンタメ':     'text-red-500',
+  'いきもの':     'text-cyan-600',
+  '寺社':         'text-stone-600',
+  'まち歩き':     'text-teal-600',
+  'リラックス':   'text-sky-600',
+  'グルメ':       'text-orange-700',
+  'ランドマーク': 'text-indigo-600',
+  'スポーツ':     'text-emerald-600',
 };
 
 const CONNECTOR_TEXTS = [
@@ -58,8 +69,15 @@ export function PlanScreen() {
     try {
       const { searchSpotsFromDB } = await import('@/lib/spotSearch');
 
-      // 過去に表示した全スポットを除外
-      const allExcludeIds = [...shownSpotIds];
+      // ピン留めされたスポットを引き継ぐ
+      const pinnedSpotObjs = currentPlan.spots.filter(s =>
+        currentPlan.pinnedSpots.includes(s.id)
+      );
+      const pinnedIds = new Set(pinnedSpotObjs.map(s => s.id));
+
+      // 過去に表示した全スポットを除外（ただしピン留めは除外しない）
+      const allExcludeIds = shownSpotIds.filter(id => !pinnedIds.has(id));
+
       const spots = await searchSpotsFromDB({
         ...currentPlan.searchParams,
         origin: startLocation.lat != null && startLocation.lng != null
@@ -67,6 +85,7 @@ export function PlanScreen() {
         walkRangeMinutes,
         userId: !isGuest && user ? user.id : undefined,
         excludeSpotIds: allExcludeIds,
+        pinnedSpots: pinnedSpotObjs.length > 0 ? pinnedSpotObjs : undefined,
       });
 
       if (spots.length === 0) {
@@ -75,7 +94,7 @@ export function PlanScreen() {
       }
 
       // 新しいスポットIDを蓄積
-      setShownSpotIds(prev => [...prev, ...spots.map(s => s.id)]);
+      setShownSpotIds(prev => [...prev, ...spots.filter(s => !pinnedIds.has(s.id)).map(s => s.id)]);
 
       const totalDuration = spots.reduce((sum, s) => sum + s.duration, 0);
 
@@ -83,7 +102,7 @@ export function PlanScreen() {
         spots,
         startTime: spots[0]?.time ?? currentPlan.startTime,
         totalDuration,
-        pinnedSpots: [],
+        pinnedSpots: Array.from(pinnedIds), // ピン留め状態を維持
         searchParams: currentPlan.searchParams,
       });
     } catch (err) {
@@ -168,31 +187,55 @@ export function PlanScreen() {
               </p>
 
               {spot.description && (
-                <p
-                  className="text-sm text-gray-500 mt-2.5 leading-relaxed overflow-hidden"
-                  style={{
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+                <p className="text-sm text-gray-500 mt-2.5 leading-relaxed">
                   {spot.description}
                 </p>
+              )}
+
+              {spot.building && (
+                <p className="flex items-center gap-1.5 text-xs text-gray-500 mt-2.5">
+                  <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  <span>{spot.building}内</span>
+                </p>
+              )}
+
+              {spot.website && (
+                <a
+                  href={spot.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 mt-2 transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>公式サイト</span>
+                </a>
               )}
             </div>
 
             {/* Connector */}
-            {!isLast && (
-              <div className="flex flex-col items-center py-1.5 text-gray-300">
-                <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
-                <div className="flex items-center gap-1.5 my-0.5 text-[11px]">
-                  <Footprints className="w-3 h-3" />
-                  <span>{connectorTexts[index]}</span>
+            {!isLast && (() => {
+              const nextSpot = currentPlan.spots[index + 1];
+              const isSameBuilding = spot.building && nextSpot.building && spot.building === nextSpot.building;
+              return (
+                <div className="flex flex-col items-center py-1.5 text-gray-300">
+                  <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
+                  <div className="flex items-center gap-1.5 my-0.5 text-[11px]">
+                    {isSameBuilding ? (
+                      <>
+                        <Building2 className="w-3 h-3" />
+                        <span>同じ{spot.building}内！</span>
+                      </>
+                    ) : (
+                      <>
+                        <Footprints className="w-3 h-3" />
+                        <span>{connectorTexts[index]}</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
                 </div>
-                <div className="w-px h-2.5 border-l border-dashed border-gray-200" />
-              </div>
-            )}
+              );
+            })()}
           </div>
         );
       })}

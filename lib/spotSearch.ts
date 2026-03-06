@@ -5,35 +5,27 @@ import type { DbSpot, PlanSpot } from '@/hooks/useNowgoStore';
 // カテゴリ正規化
 // ══════════════════════════════════════════
 
+// DB category → 表示用グループ名
 const CATEGORY_GROUP: Record<string, string> = {
-  cafe: 'カフェ', カフェ: 'カフェ', bar: 'カフェ', バー: 'カフェ', シーシャ: 'カフェ',
-  clothes: 'ショッピング', zakka: 'ショッピング', 古着: 'ショッピング', 雑貨: 'ショッピング',
-  ショップ: 'ショッピング', ショッピング: 'ショッピング', 書店: 'ショッピング',
-  文具: 'ショッピング', レコード: 'ショッピング', 古書: 'ショッピング',
-  museum: 'カルチャー', 美術館: 'カルチャー', 博物館: 'カルチャー',
-  gallery: 'カルチャー', ギャラリー: 'カルチャー', アート: 'カルチャー',
-  文学館: 'カルチャー', プラネタリウム: 'カルチャー',
-  garden: '自然', 庭園: '自然', park: '自然', 公園: '自然',
-  植物園: '自然', 自然: '自然', 自然スポット: '自然', 遊歩道: '自然',
-  amusement: 'エンタメ', アミューズメント: 'エンタメ', 遊園地: 'エンタメ',
-  テーマパーク: 'エンタメ', 体験: 'エンタメ', 体験施設: 'エンタメ',
-  エンタメ: 'エンタメ', 映画館: 'エンタメ', 劇場: 'エンタメ',
-  ライブハウス: 'エンタメ', ライブ会場: 'エンタメ', クラブ: 'エンタメ',
-  レジャー施設: 'エンタメ',
-  zoo: 'いきもの', 動物園: 'いきもの', aquarium: 'いきもの', 水族館: 'いきもの',
-  temple: '寺社', 寺社: '寺社', 神社: '寺社',
-  商店街: 'まち歩き', 商業施設: 'まち歩き', ファッションビル: 'まち歩き',
-  百貨店: 'まち歩き', 複合施設: 'まち歩き', 通り: 'まち歩き',
-  エリア: 'まち歩き', 散歩: 'まち歩き', 飲み屋街: 'まち歩き',
-  飲食街: 'まち歩き', 市場: 'まち歩き', 歓楽街: 'まち歩き',
-  地下街: 'まち歩き', エスニックタウン: 'まち歩き', ショッピングビル: 'まち歩き',
-  フードコート: 'まち歩き', グルメ: 'まち歩き',
-  spa: 'リラックス', スパ: 'リラックス', 銭湯: 'リラックス',
-  サウナ: 'リラックス', 温泉: 'リラックス', スーパー銭湯: 'リラックス',
-  restaurant: 'グルメ', ランドマーク: 'ランドマーク', 展望施設: 'ランドマーク',
-  展望台: 'ランドマーク', モニュメント: 'ランドマーク', イベント施設: 'ランドマーク',
-  sports: 'スポーツ', スポーツ: 'スポーツ', スポーツ施設: 'スポーツ',
-  路面電車: 'まち歩き',
+  cafe:          'カフェ',
+  bar:           'バー',
+  clothes:       'ファッション',
+  zakka:         '雑貨',
+  shopping:      'ショッピング',
+  museum:        'ミュージアム',
+  gallery:       'ギャラリー',
+  garden:        '自然',
+  park:          '自然',
+  amusement:     'エンタメ',
+  entertainment: 'エンタメ',
+  zoo:           'いきもの',
+  aquarium:      'いきもの',
+  temple:        '寺社',
+  town:          'まち歩き',
+  spa:           'リラックス',
+  restaurant:    'グルメ',
+  landmark:      'ランドマーク',
+  sports:        'スポーツ',
 };
 
 function getCategoryGroup(cat: string | null): string {
@@ -57,9 +49,11 @@ export interface SpotSearchParams {
   locationType?: '屋内' | '屋外';
   mode: string;
   origin?: { lat: number; lng: number };
-  walkRangeMinutes?: number;   // 「どのくらい歩ける？」（分）
+  walkRangeMinutes?: number;   // 「どのくらい歩ける？」合計歩行時間（分）
   userId?: string;
   excludeSpotIds?: string[];
+  /** ピン留めされたスポット（再作成時に引き継ぐ） */
+  pinnedSpots?: PlanSpot[];
 }
 
 // ══════════════════════════════════════════
@@ -98,6 +92,30 @@ function isOpen(spot: DbSpot, hour: number, minute: number): boolean {
 }
 
 // ══════════════════════════════════════════
+// ビル・施設名パース
+// 住所パターン: 「東京都○○区△△1-2-3 ○○ビル3F」
+// 番地の後のスペース以降がビル名（フロア部分を除去）
+// ══════════════════════════════════════════
+
+const FLOOR_RE = /\s*[B]?\d+[F階].*$/i;
+const BUILDING_RE = /\d[-−]\d+\s+(.+)$/;
+const AREA_SUFFIX_RE = /丁目付近$/;
+
+function parseBuildingName(address: string | null): string | undefined {
+  if (!address) return undefined;
+  // 「丁目付近」はエリア名であって施設名ではない
+  if (AREA_SUFFIX_RE.test(address)) return undefined;
+
+  const match = address.match(BUILDING_RE);
+  if (!match) return undefined;
+
+  // フロア情報を除去してビル名だけ残す
+  let building = match[1].replace(FLOOR_RE, '').trim();
+  if (!building || building.length < 2) return undefined;
+  return building;
+}
+
+// ══════════════════════════════════════════
 // スコアリング（個別スポットの品質評価）
 // ══════════════════════════════════════════
 
@@ -107,6 +125,7 @@ interface ScoredSpot {
   lat: number;
   lon: number;
   group: string;
+  building?: string;
 }
 
 function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
@@ -130,17 +149,22 @@ function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
   }
 
   // 1スポットあたりの時間に対して滞在時間が妥当か
-  const estimatedSpots = Math.max(1, Math.floor(params.availableTime / 40));
+  // （滞在時間は後でキャップされるので軽いペナルティのみ）
+  const estimatedSpots = Math.max(2, Math.round(params.availableTime / 35));
   const perSpotTime = params.availableTime / estimatedSpots;
-  if (stayMin > perSpotTime * 1.5) score *= 0.3;
-  else if (stayMin > perSpotTime) score *= 0.7;
+  if (stayMin > perSpotTime * 2) score *= 0.5;
+  else if (stayMin > perSpotTime * 1.5) score *= 0.8;
 
-  // スタイル
+  // スタイル（stay_type: 'stay' | 'roam' | 'short'）
   if (params.style === 'ゆっくり') {
     if (spot.stay_type === 'stay') score *= 1.3;
+    else if (spot.stay_type === 'short') score *= 0.8;
   } else if (params.style === 'アクティブ') {
     if (spot.stay_type === 'roam') score *= 1.3;
+    else if (spot.stay_type === 'short') score *= 1.2;
     if (spot.indoor_type === 'outdoor') score *= 1.1;
+  } else if (params.style === 'ほどほど') {
+    if (spot.stay_type === 'short') score *= 1.1;
   }
 
   // モード
@@ -150,7 +174,7 @@ function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
     if (fame <= 2) score *= 1.4;
     else if (fame >= 4) score *= 0.6;
   } else if (params.mode === '冒険') {
-    if (['いきもの', 'エンタメ', 'カルチャー', 'リラックス'].includes(group)) score *= 1.3;
+    if (['いきもの', 'エンタメ', 'リラックス', 'ミュージアム'].includes(group)) score *= 1.3;
   }
 
   // タグ
@@ -162,11 +186,12 @@ function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
 
   // 価格
   if (spot.price_level) {
-    const p: Record<string, number> = { free: 1.2, low: 1.1, medium: 1.0, high: 0.9, very_high: 0.7 };
+    const p: Record<string, number> = { free: 1.2, low: 1.1, medium: 1.0, high: 0.9 };
     score *= p[spot.price_level] ?? 1.0;
   }
 
-  return { spot, score, lat, lon, group };
+  const building = parseBuildingName(spot.address);
+  return { spot, score, lat, lon, group, building };
 }
 
 // ══════════════════════════════════════════
@@ -181,7 +206,6 @@ function selectDiverseSpots(
   candidates: ScoredSpot[],
   count: number,
   origin?: { lat: number; lng: number },
-  maxInterSpotKm?: number,
 ): ScoredSpot[] {
   if (candidates.length === 0) return [];
 
@@ -205,6 +229,7 @@ function selectDiverseSpots(
 
   // 2つ目以降: 「最後に選んだスポットからの近さ」で評価
   // → 重心ではなく「直前のスポット」から近い方向に進む = 一方向ルート
+  // 距離ペナルティは自然減衰のみ（合計歩行時間はbuildPlanで制御）
   while (selected.length < count) {
     const last = selected[selected.length - 1];
     let bestPick: ScoredSpot | null = null;
@@ -213,16 +238,9 @@ function selectDiverseSpots(
     for (const c of candidates) {
       if (usedIds.has(c.spot.source_id)) continue;
 
-      // 直前スポットからの距離
+      // 直前スポットからの距離（近い方が有利だが、ハードカットなし）
       const d = distanceKm(last.lat, last.lon, c.lat, c.lon);
-
-      // スポット間距離が歩ける範囲を超える場合はペナルティ
-      let proximityScore: number;
-      if (maxInterSpotKm && d > maxInterSpotKm) {
-        proximityScore = 0.05; // 歩ける範囲外はほぼ除外
-      } else {
-        proximityScore = Math.max(0.1, Math.exp(-d * 1.5));
-      }
+      const proximityScore = Math.max(0.1, Math.exp(-d * 1.5));
 
       // カテゴリ多様性
       const diversityBonus = usedGroups.has(c.group) ? 0.15 : 1.0;
@@ -255,41 +273,80 @@ function weightedRandomPick(pool: ScoredSpot[]): ScoredSpot | null {
 }
 
 // ══════════════════════════════════════════
-// ルート最適化（全順列探索）
-// 4スポットなら 4!=24通りしかないので全探索で最短ルートを出す
+// ルート最適化（全順列探索 + 同一ビルグルーピング）
+// 同じビル内のスポットは必ず連続配置し、距離0として扱う
 // ══════════════════════════════════════════
 
 function optimizeRoute(
   spots: ScoredSpot[],
   origin?: { lat: number; lng: number },
 ): ScoredSpot[] {
-  if (spots.length <= 2) {
-    // 2個以下ならorigin近い順で十分
-    if (origin) {
-      return [...spots].sort(
-        (a, b) => distanceKm(origin.lat, origin.lng, a.lat, a.lon)
-                - distanceKm(origin.lat, origin.lng, b.lat, b.lon)
-      );
+  if (spots.length <= 1) return spots;
+
+  // 同一ビルのスポットをグループ化
+  // building が一致するスポットは1つの「グループ」として扱う
+  const buildingGroups = new Map<string, number[]>();
+  const soloIndices: number[] = [];
+
+  spots.forEach((s, i) => {
+    if (s.building) {
+      const existing = buildingGroups.get(s.building);
+      if (existing) {
+        existing.push(i);
+      } else {
+        buildingGroups.set(s.building, [i]);
+      }
+    } else {
+      soloIndices.push(i);
     }
-    return spots;
+  });
+
+  // グループ化: 同一ビルは1つの代表ノードにまとめる
+  interface RouteNode {
+    spotIndices: number[];   // このノードに含まれるスポットのindices
+    lat: number;
+    lon: number;
   }
 
-  // 全順列を生成して最短ルートを見つける
-  const indices = spots.map((_, i) => i);
-  const perms = permutations(indices);
+  const nodes: RouteNode[] = [];
+  buildingGroups.forEach((indices) => {
+    if (indices.length >= 2) {
+      // 同一ビル: 1ノードにまとめる
+      nodes.push({
+        spotIndices: indices,
+        lat: spots[indices[0]].lat,
+        lon: spots[indices[0]].lon,
+      });
+    } else {
+      // 1スポットだけならソロ扱い
+      soloIndices.push(indices[0]);
+    }
+  });
+  for (const i of soloIndices) {
+    nodes.push({ spotIndices: [i], lat: spots[i].lat, lon: spots[i].lon });
+  }
 
-  let bestOrder = indices;
+  if (nodes.length <= 1) {
+    // 全スポットが同一ビルか1ノードしかない
+    return nodes.flatMap(n => n.spotIndices.map(i => spots[i]));
+  }
+
+  // ノード間で全順列探索
+  const nodeIndices = nodes.map((_, i) => i);
+  const perms = permutations(nodeIndices);
+
+  let bestOrder = nodeIndices;
   let bestDist = Infinity;
 
-  const startLat = origin?.lat ?? spots[0].lat;
-  const startLon = origin?.lng ?? spots[0].lon;
+  const startLat = origin?.lat ?? nodes[0].lat;
+  const startLon = origin?.lng ?? nodes[0].lon;
 
   for (const perm of perms) {
-    let totalDist = distanceKm(startLat, startLon, spots[perm[0]].lat, spots[perm[0]].lon);
+    let totalDist = distanceKm(startLat, startLon, nodes[perm[0]].lat, nodes[perm[0]].lon);
     for (let i = 1; i < perm.length; i++) {
       totalDist += distanceKm(
-        spots[perm[i - 1]].lat, spots[perm[i - 1]].lon,
-        spots[perm[i]].lat, spots[perm[i]].lon,
+        nodes[perm[i - 1]].lat, nodes[perm[i - 1]].lon,
+        nodes[perm[i]].lat, nodes[perm[i]].lon,
       );
     }
     if (totalDist < bestDist) {
@@ -298,7 +355,8 @@ function optimizeRoute(
     }
   }
 
-  return bestOrder.map(i => spots[i]);
+  // 最適順にフラット化（同一ビルスポットは連続で出る）
+  return bestOrder.flatMap(ni => nodes[ni].spotIndices.map(i => spots[i]));
 }
 
 function permutations(arr: number[]): number[][] {
@@ -339,9 +397,10 @@ export async function searchSpotsFromDB(
     query = query.in('indoor_type', ['outdoor', 'both']);
   }
 
-  // バウンディングボックス: walkRangeMinutesベースの範囲
+  // バウンディングボックス: 合計歩行時間の範囲内でスポットを探す
+  // 一方向に歩くケースを想定し、walkRangeMinutes 分の距離を半径とする
   if (params.origin) {
-    const walkKm = walkMinToKm(params.walkRangeMinutes ?? 30) * 1.3;
+    const walkKm = walkMinToKm(params.walkRangeMinutes ?? 10);
     const latDelta = walkKm / 111;
     const lonDelta = walkKm / (111 * Math.cos((params.origin.lat * Math.PI) / 180));
     query = query
@@ -379,37 +438,72 @@ function buildPlan(
 ): PlanSpot[] {
   const minute = params.currentMinute ?? 0;
   const availableTime = params.availableTime;
+  const pinned = params.pinnedSpots ?? [];
+  const pinnedIds = new Set(pinned.map(s => s.id));
 
   const excludeSet = new Set([
     ...(params.excludeSpotIds ?? []),
     ...visitedIds,
   ]);
 
-  // スコアリング
+  // ピン留めスポットを ScoredSpot に変換（ルート最適化で一緒に扱うため）
+  const pinnedScored: ScoredSpot[] = pinned.map(p => ({
+    spot: {
+      source_id: p.id,
+      name: p.name,
+      detail: p.description,
+      category: p.category,
+      lat: String(p.lat),
+      lon: String(p.lng),
+      address: p.address ?? null,
+      website: p.website ?? null,
+      estimated_stay_min: p.duration,
+      // 残りは null
+      source: null, cuisine: null, isActive: true,
+      starttime: null, closetime: null, is_open_24h: null,
+      indoor_type: null, weather_ok: null, famousLevel: null,
+      stay_type: null, tags: null, price_level: null,
+      popularity_hint: null, created_at: '', updated_at: null,
+      last_verified_at: null, isInbound: null,
+    } as DbSpot,
+    score: 10, // ピン留めは最高スコア
+    lat: p.lat,
+    lon: p.lng,
+    group: p.category,
+    building: p.building,
+  }));
+
+  // スコアリング（新規候補のみ）
   const candidates: ScoredSpot[] = [];
   for (const spot of rawSpots) {
     if (excludeSet.has(spot.source_id)) continue;
+    if (pinnedIds.has(spot.source_id)) continue; // ピン留め済みは除外
     if (!isOpen(spot, params.currentHour, minute)) continue;
     const scored = scoreSpot(spot, params);
     if (scored) candidates.push(scored);
   }
-  if (candidates.length === 0) return [];
 
-  // スポット間の最大歩行距離
-  const maxInterSpotKm = params.walkRangeMinutes
-    ? walkMinToKm(params.walkRangeMinutes) * 0.5
-    : undefined;
+  // availableTime からスポット数の目安を決定
+  const targetSpots = Math.max(2, Math.min(6, Math.round(availableTime / 35)));
 
-  // availableTime からスポット数を決定
-  // 1スポット平均40分滞在 + 10分移動 = 50分/スポットとして概算
-  const maxSpots = Math.max(1, Math.min(6, Math.floor(availableTime / 40)));
+  // ピン留め分を差し引いた残り枠を新規スポットで埋める
+  const newSpotsNeeded = Math.max(1, targetSpots - pinned.length);
+  const poolCount = Math.min(newSpotsNeeded + 2, 8);
+  const newSelected = candidates.length > 0
+    ? selectDiverseSpots(candidates, poolCount, params.origin)
+    : [];
 
-  // 多めに候補を選択して、時間に収まる分だけ採用する
-  const poolCount = Math.min(maxSpots + 2, 6);
-  const selected = selectDiverseSpots(candidates, poolCount, params.origin, maxInterSpotKm);
+  // ピン留め + 新規を合わせてルート最適化
+  const allSpots = [...pinnedScored, ...newSelected];
+  if (allSpots.length === 0) return [];
 
-  // ルート最適化
-  const routed = optimizeRoute(selected, params.origin);
+  const routed = optimizeRoute(allSpots, params.origin);
+
+  // 滞在時間の上限: availableTime を均等配分
+  const avgWalkMin = 8;
+  const maxStayPerSpot = Math.floor(
+    (availableTime - avgWalkMin * Math.max(1, routed.length - 1)) / Math.max(1, routed.length)
+  );
 
   // タイムテーブルを生成しながら、availableTime に収まる分だけ採用
   const startMinute = Math.ceil(minute / 15) * 15;
@@ -417,31 +511,54 @@ function buildPlan(
   baseDate.setHours(params.currentHour, startMinute, 0, 0);
   const startTime = baseDate.getTime();
   let currentTime = startTime;
-  const deadline = startTime + availableTime * 60 * 1000;
+  // 10%のオーバーは許容（ぴったりで切るとスカスカになる）
+  const deadline = startTime + availableTime * 1.1 * 60 * 1000;
 
   const result: PlanSpot[] = [];
+  // 合計歩行時間を追跡（walkRangeMinutes は合計歩行時間の上限）
+  let totalWalkMin = 0;
+  const walkBudget = params.walkRangeMinutes ?? Infinity;
 
   for (let i = 0; i < routed.length; i++) {
     const item = routed[i];
-    const stayMin = item.spot.estimated_stay_min ?? 30;
+    const isPinned = pinnedIds.has(item.spot.source_id);
+    // 滞在時間: ピン留めスポットは元の値を維持、新規はキャップ
+    const rawStayMin = item.spot.estimated_stay_min ?? 30;
+    const stayMin = isPinned ? rawStayMin : Math.min(rawStayMin, Math.max(15, maxStayPerSpot));
 
     // 移動時間（出発地 or 前のスポットからの徒歩）
-    if (i === 0 && params.origin) {
+    // 同一ビル内なら移動時間0
+    const sameBuilding = i > 0
+      && item.building
+      && routed[i - 1].building
+      && item.building === routed[i - 1].building;
+
+    let walkMin = 0;
+    if (sameBuilding) {
+      // 同じビル内 → 移動時間なし
+    } else if (i === 0 && params.origin) {
       const walkDist = distanceKm(params.origin.lat, params.origin.lng, item.lat, item.lon);
-      const walkMin = Math.max(3, Math.ceil((walkDist * 1000) / 80));
-      currentTime += walkMin * 60 * 1000;
+      walkMin = Math.max(3, Math.ceil((walkDist * 1000) / 80));
     } else if (i > 0) {
       const prev = routed[i - 1];
       const walkDist = distanceKm(prev.lat, prev.lon, item.lat, item.lon);
-      const walkMin = Math.max(3, Math.ceil((walkDist * 1000) / 80));
-      currentTime += walkMin * 60 * 1000;
+      walkMin = Math.max(3, Math.ceil((walkDist * 1000) / 80));
     }
+
+    // ピン留めスポットは必ず含める。新規スポットは予算チェック
+    if (!isPinned) {
+      // 合計歩行時間が上限を超えたら打ち切り（最低2スポットは確保）
+      if (result.length >= 2 && totalWalkMin + walkMin > walkBudget) break;
+      // 時間オーバーなら打ち切り
+      const endTimeCheck = currentTime + walkMin * 60 * 1000 + stayMin * 60 * 1000;
+      if (result.length >= 2 && endTimeCheck > deadline) break;
+    }
+
+    totalWalkMin += walkMin;
+    currentTime += walkMin * 60 * 1000;
 
     // このスポットの滞在が終わる時刻
     const endTime = currentTime + stayMin * 60 * 1000;
-
-    // 時間オーバーなら打ち切り（ただし最低1スポットは入れる）
-    if (result.length >= 1 && endTime > deadline) break;
 
     const spotTime = new Date(currentTime);
     currentTime = endTime;
@@ -455,6 +572,9 @@ function buildPlan(
       duration: stayMin,
       lat: item.lat,
       lng: item.lon,
+      website: item.spot.website || undefined,
+      address: item.spot.address || undefined,
+      building: item.building,
     });
   }
 

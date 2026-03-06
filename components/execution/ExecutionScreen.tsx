@@ -1,19 +1,28 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, MapPin, Footprints, Bookmark } from 'lucide-react';
+import { ArrowLeft, ChevronDown, MapPin, Footprints, Bookmark, Navigation, Building2 } from 'lucide-react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import { markSpotsVisited, savePlanHistory } from '@/lib/storage';
 
 // PlanScreen と同じカテゴリ色（テキスト＋ドット用）
 const CATEGORY_TEXT: Record<string, string> = {
-  'カフェ':   'text-amber-600',
-  '美術館':   'text-violet-600',
-  '庭園':     'text-green-600',
-  '雑貨':     'text-pink-600',
-  'ショップ': 'text-orange-600',
-  '水族館':   'text-cyan-600',
-  '動物園':   'text-lime-600',
+  'カフェ':       'text-amber-600',
+  'バー':         'text-amber-700',
+  'ファッション': 'text-rose-600',
+  '雑貨':         'text-pink-600',
+  'ショッピング': 'text-orange-600',
+  'ミュージアム': 'text-violet-600',
+  'ギャラリー':   'text-purple-600',
+  '自然':         'text-green-600',
+  'エンタメ':     'text-red-500',
+  'いきもの':     'text-cyan-600',
+  '寺社':         'text-stone-600',
+  'まち歩き':     'text-teal-600',
+  'リラックス':   'text-sky-600',
+  'グルメ':       'text-orange-700',
+  'ランドマーク': 'text-indigo-600',
+  'スポーツ':     'text-emerald-600',
 };
 
 const WALK_TEXTS = [
@@ -25,7 +34,7 @@ const WALK_TEXTS = [
 ];
 
 export function ExecutionScreen() {
-  const { currentPlan, setScreen } = useNowgoStore();
+  const { currentPlan, setScreen, startLocation } = useNowgoStore();
   const [currentSpotIndex, setCurrentSpotIndex] = useState(0);
   const [expandSchedule, setExpandSchedule] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -168,6 +177,14 @@ export function ExecutionScreen() {
                 </p>
               )}
 
+              {/* Building info */}
+              {currentSpot.building && (
+                <p className="flex items-center gap-1.5 text-xs text-gray-500 mt-3">
+                  <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  <span>{currentSpot.building}内</span>
+                </p>
+              )}
+
               {/* Meta */}
               <div className="flex items-center gap-2 mt-5">
                 <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1.5">
@@ -179,6 +196,24 @@ export function ExecutionScreen() {
                   徒歩で移動
                 </span>
               </div>
+
+              {/* Google Maps navigation */}
+              <a
+                href={(() => {
+                  const dest = `${currentSpot.lat},${currentSpot.lng}`;
+                  const base = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=walking`;
+                  if (startLocation.lat != null && startLocation.lng != null) {
+                    return `${base}&origin=${startLocation.lat},${startLocation.lng}`;
+                  }
+                  return base;
+                })()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full mt-4 py-3 rounded-2xl font-semibold text-white bg-green-500 hover:bg-green-600 active:bg-green-700 transition-colors"
+              >
+                <Navigation className="w-4 h-4" />
+                スポットへ行く
+              </a>
           </div>
         </div>
       </div>
@@ -187,14 +222,26 @@ export function ExecutionScreen() {
       <div className="px-5 pt-1 pb-36">
         <div className="max-w-lg mx-auto space-y-4">
           {/* Connector to next */}
-          {nextSpot && (
-            <div className="flex items-center justify-center gap-2 py-1 text-xs text-gray-300">
-              <div className="w-px h-3 border-l border-dashed border-gray-200" />
-              <Footprints className="w-3 h-3" />
-              <span>{walkText}</span>
-              <div className="w-px h-3 border-l border-dashed border-gray-200" />
-            </div>
-          )}
+          {nextSpot && (() => {
+            const isSameBuilding = currentSpot.building && nextSpot.building && currentSpot.building === nextSpot.building;
+            return (
+              <div className="flex items-center justify-center gap-2 py-1 text-xs text-gray-300">
+                <div className="w-px h-3 border-l border-dashed border-gray-200" />
+                {isSameBuilding ? (
+                  <>
+                    <Building2 className="w-3 h-3" />
+                    <span>同じ{currentSpot.building}内！</span>
+                  </>
+                ) : (
+                  <>
+                    <Footprints className="w-3 h-3" />
+                    <span>{walkText}</span>
+                  </>
+                )}
+                <div className="w-px h-3 border-l border-dashed border-gray-200" />
+              </div>
+            );
+          })()}
 
           {/* Next spot */}
           {nextSpot && (() => {

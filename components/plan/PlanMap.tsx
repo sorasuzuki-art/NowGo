@@ -25,12 +25,11 @@ export function PlanMap({ spots, currentLocation, className = '' }: PlanMapProps
 
     const map = L.map(mapRef.current, {
       zoomControl: false,
-      attributionControl: false,
     });
     mapInstance.current = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
