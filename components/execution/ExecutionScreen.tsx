@@ -69,6 +69,7 @@ export function ExecutionScreen() {
     if (currentSpotIndex < currentPlan.spots.length - 1) {
       setCurrentSpotIndex(currentSpotIndex + 1);
       setExpandSchedule(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 

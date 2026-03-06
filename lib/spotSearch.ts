@@ -167,14 +167,26 @@ function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
     if (spot.stay_type === 'short') score *= 1.1;
   }
 
-  // モード
+  // モード & scope（big=商業ビル・エリア, medium=中規模施設, small=個別スポット）
+  const scope = spot.scope;
   if (params.mode === '定番') {
     score *= 0.8 + fame * 0.15;
   } else if (params.mode === '新規開拓') {
+    // 超有名スポットは除外（新たな出会いが目的）
+    if (fame >= 5) return null;
     if (fame <= 2) score *= 1.4;
-    else if (fame >= 4) score *= 0.6;
+    else if (fame === 4) score *= 0.4;
+    // ビル・エリア・通り・ランドマーク系は完全除外
+    if (scope === 'big') return null;
+    if (spot.category === 'landmark' || spot.category === 'town') return null;
+    if (scope === 'medium') score *= 0.5;
   } else if (params.mode === '冒険') {
+    if (fame >= 5) return null;
     if (['いきもの', 'エンタメ', 'リラックス', 'ミュージアム'].includes(group)) score *= 1.3;
+    // ビル・エリア・通り・ランドマーク系は完全除外
+    if (scope === 'big') return null;
+    if (spot.category === 'landmark' || spot.category === 'town') return null;
+    if (scope === 'medium') score *= 0.5;
   }
 
   // タグ
@@ -213,49 +225,42 @@ function selectDiverseSpots(
   const usedGroups = new Set<string>();
   const usedIds = new Set<string>();
 
-  // 1つ目: 出発地に近い上位から品質加重ランダム
-  const withDist = candidates.map(c => ({
-    ...c,
-    distFromOrigin: origin ? distanceKm(origin.lat, origin.lng, c.lat, c.lon) : 0,
-  }));
-  withDist.sort((a, b) => a.distFromOrigin - b.distFromOrigin);
-  const nearPool = withDist.slice(0, Math.max(15, Math.floor(withDist.length * 0.2)));
-  const first = weightedRandomPick(nearPool);
+  // 1つ目: 全候補から均等ランダム（バウンディングボックスで既にエリア絞り済み）
+  const first = candidates[Math.floor(Math.random() * candidates.length)];
   if (!first) return [];
 
   selected.push(first);
   usedGroups.add(first.group);
   usedIds.add(first.spot.source_id);
 
-  // 2つ目以降: 「最後に選んだスポットからの近さ」で評価
-  // → 重心ではなく「直前のスポット」から近い方向に進む = 一方向ルート
-  // 距離ペナルティは自然減衰のみ（合計歩行時間はbuildPlanで制御）
+  // 2つ目以降: 直前スポットから近い候補を重み付きランダムで選択
+  // → proximityScore で近い方が有利だが、ハード制限はなし（ルート最適化で並び替え）
   while (selected.length < count) {
     const last = selected[selected.length - 1];
-    let bestPick: ScoredSpot | null = null;
-    let bestCombo = -1;
+    const pool: ScoredSpot[] = [];
+    const weights: number[] = [];
 
     for (const c of candidates) {
       if (usedIds.has(c.spot.source_id)) continue;
 
-      // 直前スポットからの距離（近い方が有利だが、ハードカットなし）
       const d = distanceKm(last.lat, last.lon, c.lat, c.lon);
-      const proximityScore = Math.max(0.1, Math.exp(-d * 1.5));
+      // 緩やかな距離減衰（1km≈0.5, 1.5km≈0.35 — 歩ける範囲なら十分候補に入る）
+      const proximityScore = Math.max(0.1, Math.exp(-d * 0.7));
+      // カテゴリ被りは強くペナルティ → 多様なプランになる
+      const diversityBonus = usedGroups.has(c.group) ? 0.05 : 1.0;
+      // スコアは sqrt で平坦化（ランダム性を上げつつ最低品質は保つ）
+      const combo = Math.sqrt(c.score) * proximityScore * diversityBonus;
 
-      // カテゴリ多様性
-      const diversityBonus = usedGroups.has(c.group) ? 0.15 : 1.0;
-
-      const combo = c.score * proximityScore * diversityBonus;
-      if (combo > bestCombo) {
-        bestCombo = combo;
-        bestPick = c;
-      }
+      pool.push(c);
+      weights.push(combo);
     }
 
-    if (!bestPick) break;
-    selected.push(bestPick);
-    usedGroups.add(bestPick.group);
-    usedIds.add(bestPick.spot.source_id);
+    if (pool.length === 0) break;
+    const pick = weightedRandomPickFromPool(pool, weights);
+    if (!pick) break;
+    selected.push(pick);
+    usedGroups.add(pick.group);
+    usedIds.add(pick.spot.source_id);
   }
 
   return selected;
@@ -268,6 +273,17 @@ function weightedRandomPick(pool: ScoredSpot[]): ScoredSpot | null {
   for (const c of pool) {
     r -= c.score;
     if (r <= 0) return c;
+  }
+  return pool[pool.length - 1];
+}
+
+function weightedRandomPickFromPool(pool: ScoredSpot[], weights: number[]): ScoredSpot | null {
+  if (pool.length === 0) return null;
+  const total = weights.reduce((s, w) => s + w, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return pool[i];
   }
   return pool[pool.length - 1];
 }
@@ -400,7 +416,7 @@ export async function searchSpotsFromDB(
   // バウンディングボックス: 合計歩行時間の範囲内でスポットを探す
   // 一方向に歩くケースを想定し、walkRangeMinutes 分の距離を半径とする
   if (params.origin) {
-    const walkKm = walkMinToKm(params.walkRangeMinutes ?? 10);
+    const walkKm = walkMinToKm(params.walkRangeMinutes ?? 20);
     const latDelta = walkKm / 111;
     const lonDelta = walkKm / (111 * Math.cos((params.origin.lat * Math.PI) / 180));
     query = query
@@ -463,7 +479,7 @@ function buildPlan(
       starttime: null, closetime: null, is_open_24h: null,
       indoor_type: null, weather_ok: null, famousLevel: null,
       stay_type: null, tags: null, price_level: null,
-      popularity_hint: null, created_at: '', updated_at: null,
+      popularity_hint: null, scope: null, created_at: '', updated_at: null,
       last_verified_at: null, isInbound: null,
     } as DbSpot,
     score: 10, // ピン留めは最高スコア
@@ -515,9 +531,6 @@ function buildPlan(
   const deadline = startTime + availableTime * 1.1 * 60 * 1000;
 
   const result: PlanSpot[] = [];
-  // 合計歩行時間を追跡（walkRangeMinutes は合計歩行時間の上限）
-  let totalWalkMin = 0;
-  const walkBudget = params.walkRangeMinutes ?? Infinity;
 
   for (let i = 0; i < routed.length; i++) {
     const item = routed[i];
@@ -545,16 +558,11 @@ function buildPlan(
       walkMin = Math.max(3, Math.ceil((walkDist * 1000) / 80));
     }
 
-    // ピン留めスポットは必ず含める。新規スポットは予算チェック
+    // ピン留めスポットは必ず含める。新規は時間オーバーなら打ち切り
     if (!isPinned) {
-      // 合計歩行時間が上限を超えたら打ち切り（最低2スポットは確保）
-      if (result.length >= 2 && totalWalkMin + walkMin > walkBudget) break;
-      // 時間オーバーなら打ち切り
       const endTimeCheck = currentTime + walkMin * 60 * 1000 + stayMin * 60 * 1000;
       if (result.length >= 2 && endTimeCheck > deadline) break;
     }
-
-    totalWalkMin += walkMin;
     currentTime += walkMin * 60 * 1000;
 
     // このスポットの滞在が終わる時刻
