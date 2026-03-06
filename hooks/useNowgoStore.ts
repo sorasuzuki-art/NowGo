@@ -38,6 +38,10 @@ export interface PlanSpot {
   duration: number;
   lat: number;
   lng: number;
+  website?: string;
+  address?: string;
+  /** ビル・施設名（住所からパース） */
+  building?: string;
 }
 
 export interface SearchParams {
@@ -102,7 +106,7 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
   },
   duration: 120,
   groupSize: 2,
-  walkRangeMinutes: 30,
+  walkRangeMinutes: 10,
   currentPlan: null,
 
   setScreen: (screen) => set({ currentScreen: screen }),
@@ -136,7 +140,7 @@ export const useNowgoStore = create<NowgoStore>((set) => ({
       },
       duration: 120,
       groupSize: 2,
-      walkRangeMinutes: 30,
+      walkRangeMinutes: 10,
       currentPlan: null,
     }),
 }));

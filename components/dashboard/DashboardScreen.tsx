@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import {
@@ -20,7 +20,6 @@ import { reverseGeocode } from '@/lib/geocoding';
 const TIME_OPTIONS = ['60分', '90分', '120分', '150分', '半日', '1日'];
 const MODE_OPTIONS = ['定番', '新規開拓', '冒険'];
 const STYLE_OPTIONS = ['ゆっくり', 'ほどほど', 'アクティブ'];
-const LOCATION_TYPE_OPTIONS = ['指定なし', '屋内', '屋外'];
 const WEATHER_OPTIONS = [
   { label: '晴れ', icon: Sun },
   { label: '曇り', icon: Cloud },
@@ -46,6 +45,88 @@ const getCurrentWeather = () => {
   return weathers[Math.floor(Math.random() * weathers.length)];
 };
 
+// ── ドラムロール式ピッカー（iOS風） ──
+const WH = 32;          // 1アイテムの高さ
+const W_VISIBLE = 3;    // 見えるアイテム数
+const W_HALF = 1;       // 中央までのオフセット
+
+const HOUR_VALUES = Array.from({ length: 24 }, (_, i) => i);
+const MINUTE_VALUES = [0, 15, 30, 45];
+
+function TimeWheel({
+  items,
+  value,
+  onChange,
+}: {
+  items: number[];
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const valRef = useRef(value);
+  valRef.current = value;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = items.indexOf(value);
+    if (idx >= 0) el.scrollTop = idx * WH;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScroll = () => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollTop / WH);
+      const i = Math.max(0, Math.min(items.length - 1, idx));
+      if (items[i] !== valRef.current) onChange(items[i]);
+    }, 80);
+  };
+
+  return (
+    <div className="relative flex-1 overflow-hidden" style={{ height: WH * W_VISIBLE }}>
+      {/* 選択バー */}
+      <div
+        className="absolute inset-x-0 border-y border-gray-200 pointer-events-none"
+        style={{ top: W_HALF * WH, height: WH }}
+      />
+      {/* フェード */}
+      <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-10" style={{ height: W_HALF * WH }} />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10" style={{ height: W_HALF * WH }} />
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto scrollbar-hide"
+        style={{
+          scrollSnapType: 'y mandatory',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        <div style={{ height: W_HALF * WH }} />
+        {items.map(v => (
+          <div
+            key={v}
+            className="flex items-center justify-center"
+            style={{ height: WH, scrollSnapAlign: 'center' }}
+          >
+            <span className={`tabular-nums transition-all duration-100 ${
+              v === value
+                ? 'text-gray-900 font-bold text-base'
+                : 'text-gray-300 text-sm'
+            }`}>
+              {v.toString().padStart(2, '0')}
+            </span>
+          </div>
+        ))}
+        <div style={{ height: W_HALF * WH }} />
+      </div>
+    </div>
+  );
+}
+
 export function DashboardScreen() {
   const { profile } = useAuth();
   const { startLocation, setStartLocation, walkRangeMinutes, setWalkRangeMinutes, setScreen, setPlan } = useNowgoStore();
@@ -61,6 +142,11 @@ export function DashboardScreen() {
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  const selectedHour = parseInt(selectedDateTime.split(':')[0]);
+  const selectedMinuteVal = parseInt(selectedDateTime.split(':')[1]);
+
+
 
   // GPS位置取得
   const getCurrentLocation = async () => {
@@ -298,35 +384,14 @@ export function DashboardScreen() {
             {/* ── 詳細オプション ── */}
             <div
               className={`overflow-hidden transition-all duration-300 ease-out ${
-                showAdvanced ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+                showAdvanced ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'
               }`}
             >
               <div className="px-5 pb-5 pt-2 space-y-5">
 
-                {/* 天気 */}
+                {/* 1. 今日どんな感じで遊ぶ？ */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">いまの天気は？</p>
-                  <div className="flex gap-2">
-                    {WEATHER_OPTIONS.map(({ label, icon: Icon }) => (
-                      <button
-                        key={label}
-                        onClick={() => setSelectedWeather(label)}
-                        className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl text-xs font-medium transition-all duration-200 active:scale-95
-                          ${selectedWeather === label
-                            ? 'bg-gray-900 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 気分 */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">今日はどんな感じ？</p>
+                  <p className="text-sm font-semibold text-gray-800 mb-3">今日どんな感じで遊ぶ？</p>
                   <div className="flex gap-2">
                     {MODE_OPTIONS.map((mode) => (
                       <button
@@ -344,47 +409,7 @@ export function DashboardScreen() {
                   </div>
                 </div>
 
-                {/* ペース */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">どう過ごす？</p>
-                  <div className="flex gap-2">
-                    {STYLE_OPTIONS.map((style) => (
-                      <button
-                        key={style}
-                        onClick={() => setSelectedStyle(style)}
-                        className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95
-                          ${selectedStyle === style
-                            ? 'bg-gray-900 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                      >
-                        {style}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 屋内/屋外 */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">屋内？屋外？</p>
-                  <div className="flex gap-2">
-                    {LOCATION_TYPE_OPTIONS.map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setSelectedLocationType(type === '指定なし' ? '' : type)}
-                        className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95
-                          ${(type === '指定なし' && selectedLocationType === '') || selectedLocationType === type
-                            ? 'bg-gray-900 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 歩ける範囲 */}
+                {/* 2. どのくらい歩ける？ */}
                 <div>
                   <p className="text-sm font-semibold text-gray-800 mb-3">どのくらい歩ける？</p>
                   <div className="flex flex-wrap gap-2">
@@ -404,22 +429,93 @@ export function DashboardScreen() {
                   </div>
                 </div>
 
-                {/* 日時 */}
+                {/* 3. いつから遊ぶ？ */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">日時を変更</p>
+                  <p className="text-sm font-semibold text-gray-800 mb-3">いつから遊ぶ？</p>
+                  {/* 日付（7日分グリッド） */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {Array.from({ length: 7 }, (_, i) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + i);
+                      const dateStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+                      const dow = ['日','月','火','水','木','金','土'][d.getDay()];
+                      const isSelected = dateStr === selectedDate;
+                      const isSun = d.getDay() === 0;
+                      const isSat = d.getDay() === 6;
+                      return (
+                        <button
+                          key={dateStr}
+                          onClick={() => setSelectedDate(dateStr)}
+                          className={`flex flex-col items-center py-2 rounded-xl text-xs font-medium transition-all
+                            ${isSelected
+                              ? 'bg-gray-900 text-white'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                        >
+                          <span className={`text-[10px] leading-none ${isSelected ? 'text-white/70' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-400'}`}>
+                            {i === 0 ? '今日' : i === 1 ? '明日' : dow}
+                          </span>
+                          <span className={`text-sm font-bold mt-0.5 ${isSelected ? '' : 'text-gray-700'}`}>
+                            {d.getDate()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* 時刻ドラムロール */}
+                  <div className="flex items-center mt-3">
+                    <TimeWheel
+                      items={HOUR_VALUES}
+                      value={selectedHour}
+                      onChange={h => setSelectedDateTime(`${h.toString().padStart(2, '0')}:${selectedMinuteVal.toString().padStart(2, '0')}`)}
+                    />
+                    <span className="text-lg font-bold text-gray-900 px-0.5 flex-shrink-0">:</span>
+                    <TimeWheel
+                      items={MINUTE_VALUES}
+                      value={selectedMinuteVal}
+                      onChange={m => setSelectedDateTime(`${selectedHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)}
+                    />
+                  </div>
+                </div>
+
+                {/* 4. どう過ごす？ */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 mb-3">どう過ごす？</p>
                   <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="flex-1 px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 border-none focus:outline-none focus:ring-2 focus:ring-gray-900 transition-shadow"
-                    />
-                    <input
-                      type="time"
-                      value={selectedDateTime}
-                      onChange={(e) => setSelectedDateTime(e.target.value)}
-                      className="flex-1 px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 border-none focus:outline-none focus:ring-2 focus:ring-gray-900 transition-shadow"
-                    />
+                    {STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style}
+                        onClick={() => setSelectedStyle(style)}
+                        className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95
+                          ${selectedStyle === style
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                      >
+                        {style}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 5. 天気は？ */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 mb-3">天気は？</p>
+                  <div className="flex gap-2">
+                    {WEATHER_OPTIONS.map(({ label, icon: Icon }) => (
+                      <button
+                        key={label}
+                        onClick={() => setSelectedWeather(label)}
+                        className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl text-xs font-medium transition-all duration-200 active:scale-95
+                          ${selectedWeather === label
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
