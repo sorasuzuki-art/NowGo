@@ -200,14 +200,7 @@ export function ExecutionScreen() {
 
               {/* Google Maps navigation */}
               <a
-                href={(() => {
-                  const dest = `${currentSpot.lat},${currentSpot.lng}`;
-                  const base = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=walking`;
-                  if (startLocation.lat != null && startLocation.lng != null) {
-                    return `${base}&origin=${startLocation.lat},${startLocation.lng}`;
-                  }
-                  return base;
-                })()}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${currentSpot.lat},${currentSpot.lng}&travelmode=walking`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full mt-4 py-3 rounded-2xl font-semibold text-white bg-green-500 hover:bg-green-600 active:bg-green-700 transition-colors"
