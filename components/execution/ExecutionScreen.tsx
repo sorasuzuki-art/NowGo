@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, MapPin, Footprints, Bookmark, Navigation, Building2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, MapPin, Footprints, Bookmark, Navigation, Building2 } from 'lucide-react';
 import { useNowgoStore } from '@/hooks/useNowgoStore';
 import { markSpotsVisited, savePlanHistory } from '@/lib/storage';
 
@@ -38,6 +38,7 @@ export function ExecutionScreen() {
   const [currentSpotIndex, setCurrentSpotIndex] = useState(0);
   const [expandSchedule, setExpandSchedule] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [exitMode, setExitMode] = useState<'complete' | 'abort'>('abort');
 
   if (!currentPlan) return null;
 
@@ -73,18 +74,34 @@ export function ExecutionScreen() {
     }
   };
 
-  const handleComplete = () => {
-    // 全スポットを訪問済みとして記録 + プラン履歴を保存（fire-and-forget）
-    const spotIds = currentPlan.spots.map((s) => s.id);
-    markSpotsVisited(spotIds);
+  const handlePrev = () => {
+    if (currentSpotIndex > 0) {
+      setCurrentSpotIndex(currentSpotIndex - 1);
+      setExpandSchedule(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
-    const { startLocation } = useNowgoStore.getState();
-    savePlanHistory({
-      spots: currentPlan.spots,
-      startTime: currentPlan.startTime,
-      totalDuration: currentPlan.totalDuration,
-      startLocationLabel: startLocation.label || undefined,
-    });
+  const handleComplete = () => {
+    if (exitMode === 'complete') {
+      // プラン完了: 全スポットを訪問済みとして記録
+      const spotIds = currentPlan.spots.map((s) => s.id);
+      markSpotsVisited(spotIds);
+
+      const { startLocation } = useNowgoStore.getState();
+      savePlanHistory({
+        spots: currentPlan.spots,
+        startTime: currentPlan.startTime,
+        totalDuration: currentPlan.totalDuration,
+        startLocationLabel: startLocation.label || undefined,
+      });
+    } else {
+      // 途中終了: 現在までのスポットのみ訪問済みとして記録
+      const visitedSpots = currentPlan.spots.slice(0, currentSpotIndex + 1);
+      if (visitedSpots.length > 0) {
+        markSpotsVisited(visitedSpots.map((s) => s.id));
+      }
+    }
 
     setShowExitDialog(false);
     setScreen('dashboard');
@@ -98,7 +115,7 @@ export function ExecutionScreen() {
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-5 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <button
-            onClick={() => setShowExitDialog(true)}
+            onClick={() => { setExitMode('abort'); setShowExitDialog(true); }}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
             aria-label="戻る"
           >
@@ -325,20 +342,39 @@ export function ExecutionScreen() {
       <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 px-5 pt-3 pb-6 z-10">
         <div className="max-w-lg mx-auto">
           {isLastSpot ? (
-            <button
-              onClick={() => setShowExitDialog(true)}
-              className="w-full py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
-            >
-              プランを完了する 🎉
-            </button>
+            <div className="flex gap-3">
+              {currentSpotIndex > 0 && (
+                <button
+                  onClick={handlePrev}
+                  className="py-3.5 px-4 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={() => { setExitMode('complete'); setShowExitDialog(true); }}
+                className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
+              >
+                プランを完了する 🎉
+              </button>
+            </div>
           ) : (
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowExitDialog(true)}
-                className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
-              >
-                終了する
-              </button>
+              {currentSpotIndex > 0 ? (
+                <button
+                  onClick={handlePrev}
+                  className="py-3.5 px-4 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setExitMode('abort'); setShowExitDialog(true); }}
+                  className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                >
+                  終了する
+                </button>
+              )}
               <button
                 onClick={handleNext}
                 className="flex-[1.2] py-3.5 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
@@ -350,26 +386,53 @@ export function ExecutionScreen() {
         </div>
       </div>
 
-      {/* Exit dialog */}
+      {/* Exit / Complete dialog */}
       {showExitDialog && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 z-50">
           <div className="bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-10 sm:pb-6 w-full sm:max-w-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">プランを終了しますか？</h3>
-            <p className="text-sm text-gray-500 mb-6">ホーム画面に戻ります。</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowExitDialog(false)}
-                className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleComplete}
-                className="flex-1 py-3.5 rounded-2xl font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors"
-              >
-                終了する
-              </button>
-            </div>
+            {exitMode === 'complete' ? (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">プランを完了しますか？</h3>
+                <p className="text-sm text-gray-500 mb-6">全スポットを訪問済みとして記録します。</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowExitDialog(false)}
+                    className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleComplete}
+                    className="flex-1 py-3.5 rounded-2xl font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                  >
+                    完了する
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">プランを途中で終了しますか？</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  {currentSpotIndex > 0
+                    ? `${currentSpotIndex + 1}スポット目までを訪問済みとして記録します。`
+                    : 'ホーム画面に戻ります。'}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowExitDialog(false)}
+                    className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleComplete}
+                    className="flex-1 py-3.5 rounded-2xl font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors"
+                  >
+                    終了する
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

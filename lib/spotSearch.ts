@@ -202,6 +202,20 @@ function scoreSpot(spot: DbSpot, params: SpotSearchParams): ScoredSpot | null {
     score *= p[spot.price_level] ?? 1.0;
   }
 
+  // カテゴリ別の時間帯適性
+  // バーは夕方以降が適切、カフェ・レストランは時間帯による軽い補正
+  const hour = params.currentHour;
+  if (spot.category === 'bar') {
+    if (hour < 17) score *= 0.05;       // 17時前のバーはほぼ除外
+    else if (hour >= 20) score *= 1.4;   // 20時以降はブースト
+    else score *= 1.0;                   // 17-19時は通常
+  } else if (spot.category === 'cafe') {
+    if (hour >= 22) score *= 0.5;        // 深夜のカフェは下げる
+  } else if (spot.category === 'restaurant') {
+    // ランチ(11-14)・ディナー(17-21)は軽いブースト
+    if ((hour >= 11 && hour <= 14) || (hour >= 17 && hour <= 21)) score *= 1.1;
+  }
+
   const building = parseBuildingName(spot.address);
   return { spot, score, lat, lon, group, building };
 }
@@ -365,6 +379,28 @@ function optimizeRoute(
         nodes[perm[i]].lat, nodes[perm[i]].lon,
       );
     }
+    // 方向転換ペナルティ: 連続するセグメント間の角度変化が大きい場合にコスト加算
+    // → 行ったり来たりするルートを回避
+    if (perm.length >= 3) {
+      for (let i = 1; i < perm.length - 1; i++) {
+        const prevLat = i === 1 ? startLat : nodes[perm[i - 2]].lat;
+        const prevLon = i === 1 ? startLon : nodes[perm[i - 2]].lon;
+        const curLat = nodes[perm[i - 1]].lat;
+        const curLon = nodes[perm[i - 1]].lon;
+        const nextLat = nodes[perm[i]].lat;
+        const nextLon = nodes[perm[i]].lon;
+
+        const angle1 = Math.atan2(curLat - prevLat, curLon - prevLon);
+        const angle2 = Math.atan2(nextLat - curLat, nextLon - curLon);
+        let angleDiff = Math.abs(angle2 - angle1);
+        if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+        // 90度以上の方向転換にペナルティ（戻りに近いほど重い）
+        if (angleDiff > Math.PI * 0.5) {
+          totalDist *= 1 + (angleDiff / Math.PI) * 0.3;
+        }
+      }
+    }
     if (totalDist < bestDist) {
       bestDist = totalDist;
       bestOrder = perm;
@@ -372,7 +408,22 @@ function optimizeRoute(
   }
 
   // 最適順にフラット化（同一ビルスポットは連続で出る）
-  return bestOrder.flatMap(ni => nodes[ni].spotIndices.map(i => spots[i]));
+  const ordered = bestOrder.flatMap(ni => nodes[ni].spotIndices.map(i => spots[i]));
+
+  // 同カテゴリ連続を解消（隣接するスポットが同カテゴリなら後方の非同カテゴリとスワップ）
+  for (let i = 0; i < ordered.length - 1; i++) {
+    if (ordered[i].group === ordered[i + 1].group) {
+      // i+2以降で異なるカテゴリを探してスワップ
+      for (let j = i + 2; j < ordered.length; j++) {
+        if (ordered[j].group !== ordered[i].group) {
+          [ordered[i + 1], ordered[j]] = [ordered[j], ordered[i + 1]];
+          break;
+        }
+      }
+    }
+  }
+
+  return ordered;
 }
 
 function permutations(arr: number[]): number[][] {
@@ -385,6 +436,39 @@ function permutations(arr: number[]): number[][] {
     }
   }
   return result;
+}
+
+// ══════════════════════════════════════════
+// スポットキャッシュ（同一エリアの再検索を高速化）
+// キー: バウンディングボックス + locationType（丸め座標）
+// TTL: 10分
+// ══════════════════════════════════════════
+
+interface SpotCacheEntry {
+  data: DbSpot[];
+  timestamp: number;
+}
+
+const spotCache = new Map<string, SpotCacheEntry>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10分
+
+function buildCacheKey(params: SpotSearchParams): string {
+  // 座標を小数3桁で丸めてキー化（約100m範囲の同一視）
+  const latKey = params.origin ? (Math.round(params.origin.lat * 1000) / 1000).toFixed(3) : 'none';
+  const lngKey = params.origin ? (Math.round(params.origin.lng * 1000) / 1000).toFixed(3) : 'none';
+  const walk = params.walkRangeMinutes ?? 20;
+  const loc = params.locationType ?? 'both';
+  return `${latKey},${lngKey},${walk},${loc}`;
+}
+
+function getCachedSpots(key: string): DbSpot[] | null {
+  const entry = spotCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    spotCache.delete(key);
+    return null;
+  }
+  return entry.data;
 }
 
 // ══════════════════════════════════════════
@@ -405,39 +489,53 @@ export async function searchSpotsFromDB(
     } catch { /* skip */ }
   }
 
-  let query = supabase.from('spot').select('*').eq('isActive', true);
+  // キャッシュ確認
+  const cacheKey = buildCacheKey(params);
+  const cached = getCachedSpots(cacheKey);
 
-  if (params.locationType === '屋内') {
-    query = query.in('indoor_type', ['indoor', 'both']);
-  } else if (params.locationType === '屋外') {
-    query = query.in('indoor_type', ['outdoor', 'both']);
+  let spots: DbSpot[];
+  if (cached) {
+    spots = cached;
+  } else {
+    let query = supabase.from('spot').select('*').eq('isActive', true);
+
+    if (params.locationType === '屋内') {
+      query = query.in('indoor_type', ['indoor', 'both']);
+    } else if (params.locationType === '屋外') {
+      query = query.in('indoor_type', ['outdoor', 'both']);
+    }
+
+    // バウンディングボックス: 合計歩行時間の範囲内でスポットを探す
+    // 一方向に歩くケースを想定し、walkRangeMinutes 分の距離を半径とする
+    if (params.origin) {
+      const walkKm = walkMinToKm(params.walkRangeMinutes ?? 20);
+      const latDelta = walkKm / 111;
+      const lonDelta = walkKm / (111 * Math.cos((params.origin.lat * Math.PI) / 180));
+      query = query
+        .gte('lat', String(params.origin.lat - latDelta))
+        .lte('lat', String(params.origin.lat + latDelta))
+        .gte('lon', String(params.origin.lng - lonDelta))
+        .lte('lon', String(params.origin.lng + lonDelta));
+    }
+
+    query = query.limit(500);
+    const { data, error } = await query;
+    if (error) throw new Error(`Supabase error: ${error.message}`);
+
+    if (!data || data.length === 0) {
+      const { data: fallback } = await supabase
+        .from('spot').select('*').eq('isActive', true).limit(300);
+      if (!fallback || fallback.length === 0) return [];
+      spots = fallback as DbSpot[];
+    } else {
+      spots = data as DbSpot[];
+    }
+
+    // キャッシュ保存
+    spotCache.set(cacheKey, { data: spots, timestamp: Date.now() });
   }
 
-  // バウンディングボックス: 合計歩行時間の範囲内でスポットを探す
-  // 一方向に歩くケースを想定し、walkRangeMinutes 分の距離を半径とする
-  if (params.origin) {
-    const walkKm = walkMinToKm(params.walkRangeMinutes ?? 20);
-    const latDelta = walkKm / 111;
-    const lonDelta = walkKm / (111 * Math.cos((params.origin.lat * Math.PI) / 180));
-    query = query
-      .gte('lat', String(params.origin.lat - latDelta))
-      .lte('lat', String(params.origin.lat + latDelta))
-      .gte('lon', String(params.origin.lng - lonDelta))
-      .lte('lon', String(params.origin.lng + lonDelta));
-  }
-
-  query = query.limit(500);
-  const { data, error } = await query;
-  if (error) throw new Error(`Supabase error: ${error.message}`);
-
-  if (!data || data.length === 0) {
-    const { data: fallback } = await supabase
-      .from('spot').select('*').eq('isActive', true).limit(300);
-    if (!fallback || fallback.length === 0) return [];
-    return buildPlan(fallback as DbSpot[], params, visitedIds);
-  }
-
-  return buildPlan(data as DbSpot[], params, visitedIds);
+  return buildPlan(spots, params, visitedIds);
 }
 
 // ══════════════════════════════════════════
@@ -515,12 +613,6 @@ function buildPlan(
 
   const routed = optimizeRoute(allSpots, params.origin);
 
-  // 滞在時間の上限: availableTime を均等配分
-  const avgWalkMin = 8;
-  const maxStayPerSpot = Math.floor(
-    (availableTime - avgWalkMin * Math.max(1, routed.length - 1)) / Math.max(1, routed.length)
-  );
-
   // タイムテーブルを生成しながら、availableTime に収まる分だけ採用
   const startMinute = Math.ceil(minute / 15) * 15;
   const baseDate = new Date();
@@ -535,9 +627,8 @@ function buildPlan(
   for (let i = 0; i < routed.length; i++) {
     const item = routed[i];
     const isPinned = pinnedIds.has(item.spot.source_id);
-    // 滞在時間: ピン留めスポットは元の値を維持、新規はキャップ
-    const rawStayMin = item.spot.estimated_stay_min ?? 30;
-    const stayMin = isPinned ? rawStayMin : Math.min(rawStayMin, Math.max(15, maxStayPerSpot));
+    // 滞在時間: DBの estimated_stay_min をそのまま使用
+    const stayMin = item.spot.estimated_stay_min ?? 30;
 
     // 移動時間（出発地 or 前のスポットからの徒歩）
     // 同一ビル内なら移動時間0
@@ -588,3 +679,23 @@ function buildPlan(
 
   return result;
 }
+
+// ══════════════════════════════════════════
+// テスト用エクスポート（本番ビルドでは使用しない）
+// ══════════════════════════════════════════
+export const __test__ = {
+  getCategoryGroup,
+  distanceKm,
+  walkMinToKm,
+  isOpen,
+  parseBuildingName,
+  scoreSpot,
+  selectDiverseSpots,
+  optimizeRoute,
+  buildCacheKey,
+  getCachedSpots,
+  buildPlan,
+  spotCache,
+  CACHE_TTL_MS,
+  permutations,
+};

@@ -77,7 +77,7 @@ export interface StartLocation {
 }
 
 interface NowgoStore {
-  currentScreen: 'auth' | 'dashboard' | 'quickplan' | 'themes' | 'profile' | 'plan' | 'executing' | 'complete';
+  currentScreen: 'auth' | 'dashboard' | 'quickplan' | 'themes' | 'profile' | 'plan' | 'executing';
   /** 出発地（住所表示＋緯度経度保持） */
   startLocation: StartLocation;
   duration: number;

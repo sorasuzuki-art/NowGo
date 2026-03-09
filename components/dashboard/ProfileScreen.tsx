@@ -203,16 +203,16 @@ export function ProfileScreen() {
   const menuSections = [
     {
       items: [
-        { icon: Heart, label: 'お気に入りスポット', color: 'text-pink-500', count: favCount },
-        { icon: MapPin, label: '行ったスポット', color: 'text-emerald-500', count: visitedCount },
-        { icon: Clock, label: 'プラン履歴', color: 'text-violet-500', count: historyCount },
+        { icon: Heart, label: 'お気に入りスポット', color: 'text-pink-500', count: favCount, disabled: true },
+        { icon: MapPin, label: '行ったスポット', color: 'text-emerald-500', count: visitedCount, disabled: true },
+        { icon: Clock, label: 'プラン履歴', color: 'text-violet-500', count: historyCount, disabled: true },
       ],
     },
     {
       items: [
         { icon: Settings, label: '設定', color: 'text-gray-400', action: handleOpenSettings },
-        { icon: HelpCircle, label: 'ヘルプ', color: 'text-gray-400' },
-        { icon: Shield, label: 'プライバシーポリシー', color: 'text-gray-400' },
+        { icon: HelpCircle, label: 'ヘルプ', color: 'text-gray-400', disabled: true },
+        { icon: Shield, label: 'プライバシーポリシー', color: 'text-gray-400', disabled: true },
       ],
     },
   ];
@@ -291,20 +291,33 @@ export function ProfileScreen() {
       <div className="max-w-2xl mx-auto px-5 pt-5 space-y-4">
         {menuSections.map((section, si) => (
           <div key={si} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            {section.items.map((item, ii) => (
-              <button
-                key={ii}
-                onClick={'action' in item ? (item as any).action : undefined}
-                className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
-              >
-                <item.icon className={`w-5 h-5 ${item.color} flex-shrink-0`} />
-                <span className="flex-1 text-[15px] text-gray-900">{item.label}</span>
-                {'count' in item && (
-                  <span className="text-sm text-gray-300 tabular-nums">{(item as any).count}</span>
-                )}
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-              </button>
-            ))}
+            {section.items.map((item, ii) => {
+              const isDisabled = (item as any).disabled;
+              const hasAction = 'action' in item && (item as any).action;
+              return (
+                <div
+                  key={ii}
+                  onClick={hasAction ? (item as any).action : undefined}
+                  className={`w-full flex items-center gap-3.5 px-5 py-3.5 text-left ${
+                    hasAction
+                      ? 'cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors'
+                      : 'cursor-default'
+                  }`}
+                  role={hasAction ? 'button' : undefined}
+                >
+                  <item.icon className={`w-5 h-5 ${isDisabled ? 'text-gray-300' : item.color} flex-shrink-0`} />
+                  <span className={`flex-1 text-[15px] ${isDisabled ? 'text-gray-400' : 'text-gray-900'}`}>{item.label}</span>
+                  {'count' in item && (
+                    <span className="text-sm text-gray-300 tabular-nums">{(item as any).count}</span>
+                  )}
+                  {isDisabled ? (
+                    <span className="text-[10px] text-gray-300 flex-shrink-0">準備中</span>
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                  )}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

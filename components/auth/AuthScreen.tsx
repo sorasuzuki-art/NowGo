@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
+import { useNowgoStore } from '@/hooks/useNowgoStore';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 export function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -14,7 +15,8 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { signIn, signUp, signInAsGuest } = useAuth();
+  const { signIn, signUp, signInAsGuest, isGuest } = useAuth();
+  const { setScreen } = useNowgoStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +56,17 @@ export function AuthScreen() {
 
       <div className="relative z-10 min-h-screen flex items-center justify-center px-6">
         <div className="w-full max-w-md">
+          {/* ゲストから来た場合のみ戻るボタンを表示 */}
+          {isGuest && (
+            <button
+              onClick={() => setScreen('dashboard')}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">ゲストに戻る</span>
+            </button>
+          )}
+
           <div className="text-center mb-10">
             <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">Now Go</h1>
             <p className="text-white/80 text-lg">今からどこ行く？</p>
