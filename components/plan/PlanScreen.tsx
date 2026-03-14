@@ -51,6 +51,7 @@ export function PlanScreen() {
   const { currentPlan, setScreen, togglePinSpot, startLocation, walkRangeMinutes, setPlan } = useNowgoStore();
   const { user, isGuest } = useAuth();
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [shownSpotIds, setShownSpotIds] = useState<string[]>(() =>
     // 初回表示時のスポットIDを記録
     useNowgoStore.getState().currentPlan?.spots.map(s => s.id) ?? []
@@ -306,7 +307,7 @@ export function PlanScreen() {
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-5 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <button
-            onClick={() => setScreen('dashboard')}
+            onClick={() => setShowBackConfirm(true)}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-800" />
@@ -381,6 +382,30 @@ export function PlanScreen() {
           </button>
         </div>
       </div>
+
+      {/* 戻る確認ダイアログ */}
+      {showBackConfirm && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 z-50">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-10 sm:pb-6 w-full sm:max-w-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">ホームに戻りますか？</h3>
+            <p className="text-sm text-gray-500 mb-6">現在のプランは失われます。</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBackConfirm(false)}
+                className="flex-1 py-3.5 rounded-2xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => { setShowBackConfirm(false); setScreen('dashboard'); }}
+                className="flex-1 py-3.5 rounded-2xl font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors"
+              >
+                戻る
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

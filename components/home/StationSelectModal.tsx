@@ -52,7 +52,7 @@ export function StationSelectModal({ isOpen, onClose }: StationSelectModalProps)
       const { data, error } = await supabase
         .from('stations')
         .select('id, name, name_kana, line_name, lat, lng')
-        .eq('prefecture', '東京都')
+        .in('prefecture', ['東京都', '神奈川県', '埼玉県', '千葉県'])
         .order('name');
 
       if (error) throw error;
